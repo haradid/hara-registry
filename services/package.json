@@ -12,7 +12,8 @@
     "broadcaster",
     "migrate",
     "indexer",
-    "rpc-cache"
+    "rpc-cache",
+    "anchor-worker"
   ],
   "pnpm": {
     "overrides": {
