@@ -34,6 +34,7 @@ moved here on purpose; they stay coupled to what they operate.
 - **OpenAPI (Trace REST):** [`api/openapi-trace.yaml`](api/openapi-trace.yaml) · **JSON-RPC reference:** [`api/jsonrpc-reference.md`](api/jsonrpc-reference.md)
 - **Deep technical reference:** [`technical/TECHNICAL.md`](technical/TECHNICAL.md) · **Security & quantum rationale:** [`technical/audit-security-quantum-performance.md`](technical/audit-security-quantum-performance.md)
 - **Latest system state:** [`state/hara-registry-state-07.md`](state/hara-registry-state-07.md)
+- **New HARA Ledger assessment (2026-10-12):** [`technical/new-ledger/registry-comparison-2026-10-12.md`](technical/new-ledger/registry-comparison-2026-10-12.md) (old 131216 vs new 121212/121299, with a live testnet benchmark) · [`technical/new-ledger/new-ledger-improvement-plan-2026-10-12.md`](technical/new-ledger/new-ledger-improvement-plan-2026-10-12.md) (21 prioritized actions, P0–P3)
 
 > The production sign-off (`PRODUCTION-READINESS.md`) and the repo entry point
 > (`README.md`) intentionally remain at the repository root.
