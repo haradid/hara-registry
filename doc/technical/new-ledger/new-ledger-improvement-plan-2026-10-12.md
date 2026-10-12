@@ -685,7 +685,12 @@ This also feeds the NevaCloud recovery kit.
 
 **Implementation steps:**
 1. Use the harness from today's run (`bench.mjs`: ramped transfers plus a Counter contract, auto-abort, receipt and counter-slot validation) as the standard. Add it to the repo under `QA/bench/`.
-2. **Parity run.** On testnet, after TN-05 and TN-12:
+2. **Parity run.** ✅ *Baseline done 2026-10-12 on the degraded chain:*
+   - **200×200 and 200×100**: 800/800 Phase C txs `status=1`; gas per tx identical to the old registry (1,444,591 vs 1,444,590 at 200×100).
+   - **End to end, 5.7× slower than the old 200×100.** The cause is block cadence (27 one-block chunks at 10 s versus 2 s) plus internet + gateway reads in Phase A/B. Chain capacity is not the cause: blocks were ≤ 0.45% gas-full.
+   - Full numbers: `registry-comparison-2026-10-12.md` §6.
+
+   **Remaining:** re-run after TN-05 and TN-12 to confirm the projected ~195 s; then run a capacity run with Phase C `CHUNK_SIZE` raised (e.g. 60) to find the chain's real `executeChain`-per-block ceiling. Original steps:
    - Deploy `HaraPalmOil` + `TraceabilityBatchRelay` from `hara-ledger/contracts`. London bytecode runs on Shanghai.
    - Grant `MINTER_ROLE`. The old registry's "527/648 TPS" result was all reverts because this was missing.
    - Run `ops/load-tests/scenario-stress-200x500.ts` at 20×100 with `CHAIN_ID=121299`, scaling up only while it stays clean.
@@ -735,6 +740,7 @@ MN-01, MN-03, MN-04, ALL-06 and TN-05 have no dependencies. Start them now.
 | Testnet block capacity | 50% of design | 100% | TN-05, TN-12 |
 | Testnet inclusion latency (measured 2026-10-12, 5–50 tx/s) | p50 6 s / p95 15 s | ≈ p50 3 s / p95 5–6 s | TN-05 (latency is set by cadence; blocks were ≤ 0.18% gas-full) |
 | Free-transaction spam exposure | Open (zero-balance senders accepted) | Writes need a key + per-sender limits | ALL-21, ALL-02, MN-03 |
+| Palm-oil 200×100 end to end (old registry: 61.4 s / 322 transfers/s) | 350.8 s / 56 transfers/s (Phase C alone: 266.6 s) | ≈ 195 s / ~100 transfers/s; old-class speed needs MN-20 (2 s blocks) or larger Phase C chunks | TN-05 (+ MN-20) |
 | Mainnet block cadence | 15 s gaps on throttled validators; occasional OOM restarts | Evenly spaced 5 s | MN-09 |
 | Mainnet read freshness (`call` pool) | 20–65 s behind head under estimate bursts | < 1 block | MN-10 |
 | RPC hang risk from `debug_trace*` floods | Open to anonymous callers | Closed | ALL-02, MN-03 |

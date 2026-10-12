@@ -142,6 +142,48 @@ Raw "TPS" figures on the two sides measure **different workloads**, so they cann
   - Against the old registry's recorded 361 events/s (~1.45 tx/s, ~10 M gas/s on heavy 499-hop txs): the old chain proved more heavy-gas capacity and lower latency (2 s blocks). The new testnet has plenty of headroom for light traffic. A like-for-like `executeChain` run on the new chain is still needed.
 - **Side finding:** zero-balance senders are accepted. Gas-free plus no balance check means free transaction spam, throttled only by a bypassable gateway limiter.
 
+### Palm-oil parity run: the old registry's own workload on the new testnet (2026-10-12)
+
+**Setup**
+- Script: `ops/load-tests/scenario-stress-200x500.ts`, unmodified (`CHAINS HOPS` args). It ran on Node 24 with no TypeScript build step, through the keyed gateway.
+- Contracts: `HaraPalmOil` + `TraceabilityBatchRelay`, compiled from `hara-ledger/contracts/src` with the repo's settings (solc 0.8.26, London, optimizer 200; OpenZeppelin 5.0.2). Deployed to 121299:
+  - token `0xe5b70a3c…de98f`
+  - relay `0x31c536a2…1ccd0`
+  - the deployer holds `MINTER_ROLE` (verified)
+- Every receipt was audited independently afterwards.
+
+| Run | Phase C txs | Status 1 | Logs per `executeChain` | Transfers confirmed | Gas per `executeChain` | Gas per hop |
+|---|---|---|---|---|---|---|
+| Pilot 20×200 | 40 | 40/40 | 200 | 3,980 | 5,430,944 | 27,291 |
+| **200×200** | 400 | **400/400** | 200 | **39,800** | 5,430,953 | 27,291 |
+| **200×100** | 400 | **400/400** | 100 | **19,800** | 2,715,420 | 27,428 |
+
+**Workload equivalence:** the new 200×100 averaged **1,444,591 gas/tx**; the old registry's 200×100 recorded **1,444,590**. Same bytecode, same work.
+
+**Timing**
+
+| | Old 131216 (2 s blocks, in-mesh client) | New testnet 121299 (10 s effective blocks, client over internet + gateway) |
+|---|---|---|
+| 200×100 total wall clock | **61.4 s → 322 transfers/s** | **350.8 s → 56 transfers/s** (5.7× slower) |
+| 200×100 by phase | ~7 s A+B, ~54 s C (27 blocks × 2 s) | 43.9 s A + 39.6 s B, **266.6 s C** (27 blocks × ~10 s) |
+| 200×200 total wall clock | not run on the old registry | **539.9 s → 74 transfers/s** (A 127.0 s, B 98.4 s, C 313.2 s) |
+| 200×200 Phase C only | — | 39,800 transfers / 313 s = **127 transfers/s** |
+| 200×500 total (reference) | 276.4 s → 361 transfers/s | not run |
+| Blocks used by Phase C | 27 (1 chunk per block) | **27** (1 chunk per block, measured) |
+| Fullest block during the run | up to 316 M gas (single-block burst test) | 44.7 M gas = **0.45% of the 10 G limit** |
+
+**Why the new chain is 5.7× slower end to end on the same workload:**
+1. **Block cadence explains most of it.** Phase C is chunk-then-wait (15 txs per chunk, wait for the receipt), so it costs exactly one block per chunk on both chains: 27 blocks either way. Old: 27 × 2 s. New: 27 × 10 s.
+   - Of that 5×: **2× comes from the phantom-validator bug** (10 s instead of the designed 5 s).
+   - **2.5× comes from the design choice** of 5 s blocks versus 2 s.
+2. **Client path: Phase A+B takes 83 s versus ~7 s.** The script verifies 200 balances and 200 approvals with **sequential** reads. The old client sat inside the WireGuard mesh with direct RPC (~ms per read). Today's client reached the new chain over the internet through the rate-limited gateway (~50 ms+ per read, plus 429 retries), and every priming chunk waits for a 10 s block.
+3. **Chain capacity is not the bottleneck.** The fullest block carried 8 × `executeChain` = 44.7 M gas, under 0.5% of the gas limit. Per block, the new testnet did exactly the work the client offered.
+
+**Projected 200×100 end to end:**
+- ~195 s (~100 transfers/s) after the testnet validator-set fix (5 s cadence).
+- ~150 s (~130/s) with an in-network client.
+- Roughly the old 61 s class only with **2 s blocks** (improvement plan MN-20) or a **larger Phase C chunk size**. The chain has room for many more `executeChain` per block, so offering bigger chunks would show its real ceiling. This was not run: it is a heavier load than approved for today.
+
 ---
 
 ## 7. Risks a migration onto the new mainnet inherits (top 5)
