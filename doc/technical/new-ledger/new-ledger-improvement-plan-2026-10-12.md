@@ -868,6 +868,7 @@ Effects are cumulative estimates unless marked measured.
 | 6 | **In-region benchmark client + higher `rps_limit` key** | Reads ~50 ms → ~1 ms; no 429-dropped batches | S | ALL-19 |
 | 7 | **Shorten the RPC path.** Today it's Caddy (Host A) → gateway (Host B) → V1 (Host A), two cross-cloud hops. Co-locate the gateway with its primary RPC, or read from V3 (same host as the gateway) | Lower read latency; removes the transient 502 | M | MN-13 analogue |
 | 8 | **Validator headroom:** split the RPC role off V1 (or add vCPU on Host A), right-size `mem_limit`, no CPU caps | Not binding at measured load; needed for ceiling tests | M | MN-09 analogue |
+| 12 | **Right-size the block gas limit to validator import speed.** `target-gas-limit` is 10 G, but a measured 578 M-gas block delayed the next block by ~17 s. Set it to roughly import-rate × block period (≈150 M at 5 s, ≈60 M at 2 s on today's hosts). Put it in `genesis.next.json` for the Jan 1 reset, or set `target-gas-limit` now and let it converge (1/1024 per block) | Removes post-heavy-block stalls; keeps cadence steady under bursts | S | new |
 
 Measured results for #2 + #3 are in §10.
 
@@ -893,6 +894,14 @@ Measured results for #2 + #3 are in §10.
 - **Empty blocks between chunks.** Each 60-tx chunk filled exactly one block, but the client only notices the receipt on viem's ~4 s poll. By then the next block (5 s after a 15 s one) has been built empty, so each chunk costs ~2 blocks (~17 s average).
   - **Next quick win:** `PHASE_C_WAIT_EACH=0` (pipelined), or `pollingInterval: 500` on the public client. Expected Phase C ≈ 7 back-to-back blocks ≈ 70 s, total ≈ 90 s.
   - Pipelined submission puts up to 400 txs from one sender in the pool at once. The old Besu ~200-per-sender wall is unverified on 26.6; try it on testnet first and audit receipts.
+**Measured follow-up: pipelined Phase C (`FAST_SETUP=1 PHASE_C_CHUNK=60 PHASE_C_WAIT_EACH=0`, fresh wallets).**
+- 200×100 took **64.4 s / 308 transfers/s**: within 5% of the old registry (61.4 s / 322), on the same degraded 10 s chain.
+- Setup 22.9 s; Phase C **38.9 s (509 transfers/s)**.
+- 400/400 Phase C `status=1`, 100 logs per `executeChain`, 300/300 token txs. Nothing dropped, so the old ~200-per-sender pool wall does not apply on Besu 26.6.
+- **Capacity signal:** all 400 txs landed in **one block (#104622, 577.8 M gas, 5.8% of the limit)**. The **next block arrived 22 s later instead of 5 s**: the next proposer, V3 on Host B (3 vCPU, shared with gateway/Postgres/Redis/dashboard), most likely spent ~17 s importing it. That implies roughly 35 M gas/s of import capacity on this hardware.
+  - Confirm from V3 logs: `docker logs validator3 | grep 104622`.
+  - **Implication:** blocks larger than ~150–170 M gas (5 s period) or ~60–70 M gas (2 s) stall the next round. Cap the gas per block to what the slowest validator can import inside one period (see §9 #12).
+
 - **Block cadence.** 10 s (degraded) → 5 s with TN-05 → 2 s at the Jan 1 reset (#4). With #1 + pipelining, 200×100 should land around 45–60 s, the old-registry class. With #4 as well, likely faster than the old registry. *(Projections, to be measured.)*
 
 ---
