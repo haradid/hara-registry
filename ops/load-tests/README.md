@@ -417,3 +417,5 @@ FAST_SETUP=1 PHASE_C_CHUNK=60 node scenario-stress-200x500.ts 200 100
 ```
 
 **Measured 2026-10-13 on HARA testnet 121299** (degraded 10 s blocks): `FAST_SETUP=1 PHASE_C_CHUNK=60` took 200×100 from 350.8 s to **137.8 s** (setup 83.4 s → 16.8 s, or 0.5 s with reused wallets; Phase C 27 blocks → 7). 400/400 receipts `status=1`. The remaining client-side gap is empty blocks between waited chunks (viem's ~4 s receipt poll); try `PHASE_C_WAIT_EACH=0` next.
+
+**Measured 2026-10-13, pipelined** (`PHASE_C_WAIT_EACH=0`, fresh wallets): 200×100 in **64.4 s / 308 transfers/s**, within 5% of the old registry's 61.4 s on a 10 s-block chain; 400/400 `status=1`, none dropped. All 400 txs landed in one 578 M-gas block and the next block was ~17 s late. On small validators, keep per-block gas bounded: use waited chunks, or lower `target-gas-limit`.
