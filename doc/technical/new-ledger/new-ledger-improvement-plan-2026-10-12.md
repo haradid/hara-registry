@@ -848,4 +848,52 @@ These are **different workloads**, so tx/s and gas/s can't be compared head-to-h
 - Pool size stays bounded under a synthetic flood on testnet.
 
 ---
+
+## 9. Testnet speed: what to do, ranked (2026-10-13)
+
+**Grounding:** the 2026-10-12 runs.
+- Blocks were at most 0.45% gas-full.
+- The palm-oil Phase C cost exactly one block per waited chunk.
+- Wallet setup (Phase A+B) took two-thirds of the 200×200 wall clock.
+
+Effects are cumulative estimates unless marked measured.
+
+| # | Action | Speed effect | Effort | Plan item |
+|---|---|---|---|---|
+| 1 | **Fix the validator set** (remove the phantom, then add V1), after the RPC lockdown | 10 s → **5 s blocks**: inclusion p50 ~6 s → ~3 s; 200×100 Phase C ~267 s → ~135 s | S | TN-05 (+ ALL-02 first) |
+| 2 | **Bigger Phase C chunks** (15 → 60) or pipelined submission | Phase C goes from 27 blocks to ~7 | S | ALL-19 (client) |
+| 3 | **Faster wallet setup:** batched verification reads, one-shot sends with one wait, wallet reuse, optional skip-priming | 200×200 setup 225 s → ~20 s (first run), ~2 s (reuse) | S | ALL-19 (client) |
+| 4 | **2 s blocks at the Jan 1 reset.** The testnet re-genesises anyway, so put `blockperiodseconds: 2` (and a matching `requesttimeoutseconds`) in the staged `genesis.next.json`; no QBFT transition needed | ~2.5× on top of #1 (old-registry cadence) | S | TN-05 step 6 / MN-20 |
+| 5 | **Besu 26.6.0-RC1 → 26.6.1** | Removes the known post-burst empty-block stall | S | TN-12 |
+| 6 | **In-region benchmark client + higher `rps_limit` key** | Reads ~50 ms → ~1 ms; no 429-dropped batches | S | ALL-19 |
+| 7 | **Shorten the RPC path.** Today it's Caddy (Host A) → gateway (Host B) → V1 (Host A), two cross-cloud hops. Co-locate the gateway with its primary RPC, or read from V3 (same host as the gateway) | Lower read latency; removes the transient 502 | M | MN-13 analogue |
+| 8 | **Validator headroom:** split the RPC role off V1 (or add vCPU on Host A), right-size `mem_limit`, no CPU caps | Not binding at measured load; needed for ceiling tests | M | MN-09 analogue |
+
+Measured results for #2 + #3 are in §10.
+
+## 10. Measured: #2 + #3 on the testnet (2026-10-13, chain still degraded at 10 s)
+
+**Setup**
+- `scenario-stress-200x500.ts` with the new opt-in flags `FAST_SETUP=1 PHASE_C_CHUNK=60`, on branch `perf/stress-scenario-fast-setup`.
+- Priming was **on**, to stay comparable with the old runs.
+- Same contracts and endpoint as 2026-10-12. Every receipt audited.
+
+| 200×100 | Old registry (2 s blocks) | New testnet, old script (10-12) | **New testnet, #2 + #3 (10-13)** |
+|---|---|---|---|
+| Wall clock (all phases) | **61.4 s** | 350.8 s | **137.8 s** (2.5× faster than the old script) |
+| Transfers/s (old formula) | **322** | 56 | **144** |
+| Setup A+B | ~7 s | 83.4 s | **16.8 s**; **0.5 s** when wallets are reused (same `SEED`) |
+| Phase C | ~54 s | 266.6 s (27 one-block chunks) | **118.7 s** (7 chunks, 167 transfers/s) |
+| Phase C blocks used | 27 | 27 | **7** (30 `executeChain` = 86.7 M gas per block, 0.87% of the limit) |
+| Receipts | 400/400 `status=1` | 400/400 | **400/400**, 100 logs each, + 300/300 token txs |
+
+**Gap to the old registry: 5.7× → 2.2×**, with no infrastructure change.
+
+**What's left in that 2.2×:**
+- **Empty blocks between chunks.** Each 60-tx chunk filled exactly one block, but the client only notices the receipt on viem's ~4 s poll. By then the next block (5 s after a 15 s one) has been built empty, so each chunk costs ~2 blocks (~17 s average).
+  - **Next quick win:** `PHASE_C_WAIT_EACH=0` (pipelined), or `pollingInterval: 500` on the public client. Expected Phase C ≈ 7 back-to-back blocks ≈ 70 s, total ≈ 90 s.
+  - Pipelined submission puts up to 400 txs from one sender in the pool at once. The old Besu ~200-per-sender wall is unverified on 26.6; try it on testnet first and audit receipts.
+- **Block cadence.** 10 s (degraded) → 5 s with TN-05 → 2 s at the Jan 1 reset (#4). With #1 + pipelining, 200×100 should land around 45–60 s, the old-registry class. With #4 as well, likely faster than the old registry. *(Projections, to be measured.)*
+
+---
 *Sources:* `mainnet_production/{docs/ARCHITECTURE.md, BACKLOG.md, docs/STATUS_TERDEPLOY_2026-08-20.md, QA/STRESS_TEST_RESULTS.md, gateway/gateway/src/**}`, `tesnet_server/{docs/CHANGELOG.md, validator*/config/*, scripts/*, gateway/**}`, `cloud_1/stress_test/SUMMARY.md`, `docs/12_capacity_planning.md`; old-registry tooling referenced from `hara-ledger/deploy/ops/*`, `ops/load-tests/*`; live probe of `rpc.mampang.haratoken.app` on 2026-10-12.

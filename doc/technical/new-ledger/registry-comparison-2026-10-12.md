@@ -184,6 +184,13 @@ Raw "TPS" figures on the two sides measure **different workloads**, so they cann
 - ~150 s (~130/s) with an in-network client.
 - Roughly the old 61 s class only with **2 s blocks** (improvement plan MN-20) or a **larger Phase C chunk size**. The chain has room for many more `executeChain` per block, so offering bigger chunks would show its real ceiling. This was not run: it is a heavier load than approved for today.
 
+**Update 2026-10-13: client-side fixes measured (chain unchanged, still 10 s).**
+- Re-run of 200×100 with batched setup reads, one-shot setup sends, wallet reuse and 60-tx Phase C chunks (`FAST_SETUP=1 PHASE_C_CHUNK=60`).
+- Result: **137.8 s / 144 transfers/s** (was 350.8 s / 56). Setup 16.8 s (was 83.4 s; **0.5 s** with reused wallets). Phase C 118.7 s in 7 blocks (was 266.6 s in 27).
+- 400/400 `status=1`. Blocks carried 30 `executeChain` (86.7 M gas, 0.87% of the limit).
+- **The gap to the old registry's 61.4 s is down from 5.7× to 2.2×.** What remains is block cadence plus empty blocks left between chunks by the client's 4 s receipt polling.
+- Details: improvement plan §10.
+
 ---
 
 ## 7. Risks a migration onto the new mainnet inherits (top 5)
