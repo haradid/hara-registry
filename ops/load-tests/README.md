@@ -387,3 +387,33 @@ Not built yet — talk to me if/when traceability load becomes the bottleneck.
 - **Indexer reorg handling** (QBFT doesn't reorg in normal operation)
 
 Those belong in stage-specific runbooks, not load tests.
+
+---
+
+## Stress scenario tuning (`scenario-stress-200x500.ts`)
+
+`node scenario-stress-200x500.ts <CHAINS> <HOPS>` runs three phases:
+- **A:** prime HOPS wallets with 1 wei
+- **B:** every wallet runs `setApprovalForAll(relay)`
+- **C:** CHAINS × (`mintBatch` + `executeChain` across all HOPS wallets)
+
+All flags are opt-in. With none set, the script reproduces the 2026-05/06 runs exactly.
+
+| Env | Default | Effect |
+|---|---|---|
+| `FAST_SETUP=1` | off | Phase A/B verification reads go out as JSON-RPC batches (`READ_BATCH_SIZE`, default 50) instead of one request per wallet. Wallets already primed/approved are skipped, so a re-run with the same `SEED` needs almost no setup. Each setup phase is sent in one shot (`SETUP_CHUNK`, default 500) with a single wait; approvals are confirmed by polling until all are set. |
+| `SKIP_PRIME=1` | off | Skip Phase A. **Only** for chains that accept zero-balance senders (e.g. HARA testnet 121299). Where Besu rejects unknown senders it recreates validator-pool zombies. |
+| `PHASE_C_CHUNK` | 15 | Phase C txs per submission. Each waited chunk costs one block, so on a chain with spare block capacity a bigger chunk means proportionally fewer blocks. Keep it well under ~200 (Besu per-sender pool wall). |
+| `PHASE_C_WAIT_EACH=0` | 1 | Submit Phase C chunks back-to-back and wait once at the end. |
+| `SKIP_PHASE_C=1` | off | Stop after setup (measure setup / wallet reuse without chain load). |
+
+The summary also prints `Setup (A+B)`, `Phase C` and `Phase C rate`, so setup cost and chain throughput can be read separately. Always audit receipts (`status`, gas, log count) before quoting a rate.
+
+Example (HARA testnet; contracts deployed by you, deployer holds `MINTER_ROLE`):
+```bash
+RPC_WRITE_URL=https://rpc.mampang.haratoken.app/v1/$KEY RPC_READ_URL=$RPC_WRITE_URL CHAIN_ID=121299 \
+DEPLOYER_PRIVATE_KEY=... TOKEN_ADDRESS=0x... RELAY_ADDRESS=0x... SEED=bench-1 \
+FAST_SETUP=1 PHASE_C_CHUNK=60 node scenario-stress-200x500.ts 200 100
+```
+
+**Measured 2026-10-13 on HARA testnet 121299** (degraded 10 s blocks): `FAST_SETUP=1 PHASE_C_CHUNK=60` took 200×100 from 350.8 s to **137.8 s** (setup 83.4 s → 16.8 s, or 0.5 s with reused wallets; Phase C 27 blocks → 7). 400/400 receipts `status=1`. The remaining client-side gap is empty blocks between waited chunks (viem's ~4 s receipt poll); try `PHASE_C_WAIT_EACH=0` next.
