@@ -273,8 +273,16 @@
 - Consensus regains crash tolerance. Today both V2 and V3 must be up.
 - **It will regress again at the Jan 1 reset** unless genesis is fixed.
 
+**Correction (2026-10-13, from live data):**
+- The chain has produced blocks for 13 days with only V2 and V3 signing. So the 3-validator quorum is **2**: Besu uses `ceil(2N/3)`. The testnet docs' "quorum 3-of-3, 0% fault tolerance" is wrong.
+- That makes **remove-before-add** the safer order here. The phantom contributes nothing, so removing it first never raises the number of nodes that must be up. Adding V1 first passes through a 4-validator set that needs all of V1, V2 and V3 online.
+
+**Prerequisite (security gate):** apply ALL-02's lockdown first. At minimum, block `qbft_*`, `admin_*` and `debug_*` in the gateway, or drop `QBFT`/`ADMIN`/`DEBUG` from V1's and V3's `rpc-http-api`.
+- V1 is the public RPC backend and V3 is the failover. Once V1 is a validator, anonymous callers could cast its votes.
+- Forcing a failover to V3 (e.g. by flooding `debug_trace*`) would give them V3's vote too: 2 of 3 is a majority.
+
 **Action plan:**
-1. Fix the live set now, without a reset, using votes: add V1, then remove the phantom.
+1. Fix the live set now, without a reset, using votes: **remove the phantom, then add V1.**
 2. Stage a corrected genesis that the next reset will use.
 3. Make the reset script refuse to run if genesis and the intended validator set disagree.
 
@@ -283,16 +291,19 @@
    - In `validator2/config/config.toml` set `rpc-http-enabled=true`, `rpc-http-host="127.0.0.1"`, `rpc-http-port=5799`, `rpc-http-api=["ETH","QBFT"]`. Loopback only.
    - Restart V2.
    - **The chain pauses for the restart**, because V2 and V3 are both required right now. On testnet that is acceptable.
-2. **Phase 1, add V1.** A change needs votes from more than 50% of the current 3 validators, so 2 votes. On V2 (`127.0.0.1:5799`) and V3 (`127.0.0.1:5797` on Host B):
+2. **Phase 1, remove the phantom.** A change needs votes from more than 50% of the current 3 validators, so 2 votes. On V2 (`127.0.0.1:5799`) and V3 (`127.0.0.1:5797` on Host B):
    ```bash
    curl -s -X POST -H 'content-type: application/json' --data \
-     '{"jsonrpc":"2.0","id":1,"method":"qbft_proposeValidatorVote","params":["0x4bbab2e3cf13b02d481670aadc761945b442ffec",true]}' \
+     '{"jsonrpc":"2.0","id":1,"method":"qbft_proposeValidatorVote","params":["0x7ac4c91aa6461f0382213a8f1b0f5bc98cf20437",false]}' \
      http://127.0.0.1:<PORT>
    ```
-   Wait until `qbft_getValidatorsByBlockNumber latest` returns 4 addresses that include `0x4bbab2e3…`.
-3. **Phase 2, remove the phantom.** With 4 validators you need 3 votes, so cast them on V1, V2 and V3:
-   `qbft_proposeValidatorVote ["0x7ac4c91aa6461f0382213a8f1b0f5bc98cf20437", false]`
-   Wait until the set is `[V1, V2, V3]`.
+   - Wait until `qbft_getValidatorsByBlockNumber latest` returns `[V2, V3]`.
+   - Quorum stays 2 (V2 + V3), exactly today's dependency.
+   - **Blocks should return to a steady 5 s immediately**, because there are no more phantom proposer turns.
+3. **Phase 2, add V1.** With 2 validators you need 2 votes (V2 + V3):
+   `qbft_proposeValidatorVote ["0x4bbab2e3cf13b02d481670aadc761945b442ffec", true]`
+   - Wait until the set is `[V1, V2, V3]`; quorum stays 2, so 1 crash is tolerated.
+   - If V1 then fails to sign, the chain keeps running on V2 + V3. Vote V1 out again and investigate.
 4. On each node, `qbft_getPendingVotes`, then `qbft_discardValidatorVote <addr>` for anything left over.
 5. Revert V2's RPC to disabled, or leave it loopback-only, and restart it once more.
 6. **Stage the corrected genesis. Do not edit the live `genesis.json`:** Besu refuses to start an existing database against a different genesis.
