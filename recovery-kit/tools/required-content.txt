@@ -1,0 +1,96 @@
+# <kit-relative-path>|<ERE regex>  — one assertion per line; tasks append their own.
+00-PRE-TEARDOWN-EXTRACTION.md|quorum
+00-PRE-TEARDOWN-EXTRACTION.md|121212.*(4 of 7|4/7)
+00-PRE-TEARDOWN-EXTRACTION.md|121299.*(2 of 3|2/3)
+00-PRE-TEARDOWN-EXTRACTION.md|add-before-remove
+00-PRE-TEARDOWN-EXTRACTION.md|qbft_proposeValidatorVote
+00-PRE-TEARDOWN-EXTRACTION.md|FAUCET_PRIMARY_PRIVATE_KEY
+00-PRE-TEARDOWN-EXTRACTION.md|hara-backups\.txt
+00-PRE-TEARDOWN-EXTRACTION.md|ops/secrets\.txt
+00-PRE-TEARDOWN-EXTRACTION.md|s3-readback-check
+00-PRE-TEARDOWN-EXTRACTION.md|GetObject 403
+00-PRE-TEARDOWN-EXTRACTION.md|age -r
+00-PRE-TEARDOWN-EXTRACTION.md|E19
+00-PRE-TEARDOWN-EXTRACTION.md|<MAINNET_V3_IP>
+00-PRE-TEARDOWN-EXTRACTION.md|<TESTNET_HOSTB_IP>
+secrets-inventory.md|Never copy values
+secrets-inventory.md|secret/haraledger/validators
+secrets-inventory.md|secret/haraledger/admin-keys/admin-2026-05-27
+secrets-inventory.md|secret/haraledger/signer-keys/anchor-worker
+secrets-inventory.md|FAUCET_PRIVATE_KEY
+hosts.env.example|^LEDGER_MESH_SUBNET="10\.43\.0\.0/24"
+hosts.env.example|10\.42\.0\.0/24.*bridge
+hosts.env.example|topology\.md.*stale
+hosts.env.example|^LEDGER_DOMAIN_RPC="rpc\.ledger\.haratrust\.io"
+hosts.env.example|^MAINNET_CALL_PUBLIC_IP=
+hosts.env.example|^TESTNET_HOSTB_PUBLIC_IP=
+hosts.env.example|^MAINNET_HAPROXY_HOST="<MAINNET_V1_AWS_IP>"
+hosts.env.example|^TESTNET_HOSTA_PUBLIC_IP="<TESTNET_HOSTA_IP>"
+131216-ledger/README.md|hara-stateful
+131216-ledger/README.md|[Bb]ring-up order
+131216-ledger/README.md|10\.43\.0\.20
+131216-ledger/README.md|topology\.md.*stale
+131216-ledger/recreate.md|cloud-init\.yaml
+131216-ledger/recreate.md|wg-bootstrap\.sh
+131216-ledger/recreate.md|vault-raft-init\.sh
+131216-ledger/recreate.md|vault-approle-bootstrap\.sh
+131216-ledger/recreate.md|secrets-bootstrap\.sh init
+131216-ledger/recreate.md|bringup-phase7\.sh
+131216-ledger/recreate.md|INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER=true
+131216-ledger/recreate.md|hostname -s
+131216-ledger/recreate.md|repo-derived — verify before cutover
+131216-ledger/monitoring.md|besu-overview\.json
+131216-ledger/monitoring.md|rpc-tier\.json
+131216-ledger/monitoring.md|console\.platform\.haratrust\.io
+131216-ledger/monitoring.md|:8404
+131216-ledger/backup-restore.md|hara-backups-postgres-wal
+131216-ledger/backup-restore.md|hara-backups-vault
+131216-ledger/backup-restore.md|pitr-restore-drill\.sh
+131216-ledger/backup-restore.md|GetObject 403
+131216-ledger/scripts-manifest.md|`deploy/ops/install-backup-timers\.sh`
+131216-ledger/scripts-manifest.md|`deploy/chain/init/init\.sh`
+131216-ledger/scripts-manifest.md|`deploy/edge/Caddyfile`
+121212-mainnet-neva/README.md|<MAINNET_V3_IP>
+121212-mainnet-neva/README.md|<MAINNET_CALL_IP>
+121212-mainnet-neva/README.md|<MAINNET_GATEWAY_IP>
+121212-mainnet-neva/README.md|<MAINNET_V1_AWS_IP>
+121212-mainnet-neva/README.md|host-only
+121212-mainnet-neva/recreate.md|keccak256
+121212-mainnet-neva/recreate.md|qbft_proposeValidatorVote
+121212-mainnet-neva/recreate.md|sync-mode=FULL
+121212-mainnet-neva/recreate.md|26\.6\.1
+121212-mainnet-neva/recreate.md|permitopen
+121212-mainnet-neva/recreate.md|repo-derived — verify before cutover
+121212-mainnet-neva/scripts/config/genesis.json|"chainId": 121212
+121299-testnet-neva/README.md|<TESTNET_HOSTB_IP>
+121299-testnet-neva/README.md|<TESTNET_HOSTA_IP>
+121299-testnet-neva/README.md|quorum.*3
+121299-testnet-neva/recreate.md|validator3_reset_remote\.sh
+121299-testnet-neva/recreate.md|hara-quarterly-reset-key
+121299-testnet-neva/recreate.md|host\.docker\.internal:5797
+121299-testnet-neva/recreate.md|DOCKER-USER
+121299-testnet-neva/recreate.md|sync-mode=FULL
+121299-testnet-neva/recreate.md|repo-derived — verify before cutover
+121299-testnet-neva/scripts/config/genesis.json.template|121299
+121299-testnet-neva/scripts/ops/cleanup_quarterly_reset.sh|<TESTNET_HOSTB_IP>|HOST_B
+README.md|00-PRE-TEARDOWN-EXTRACTION\.md
+README.md|hosts\.env\.example
+README.md|verify-kit\.sh
+README.md|121212
+README.md|121299
+README.md|131216
+MANIFEST.md|Blockchain@mainnet-final:
+MANIFEST.md|Blockchain@testnet-final:
+MANIFEST.md|authored
+# --- final-review fixes (2026-11-24)
+00-PRE-TEARDOWN-EXTRACTION.md|set -o pipefail
+00-PRE-TEARDOWN-EXTRACTION.md|PIPESTATUS
+00-PRE-TEARDOWN-EXTRACTION.md|trace\.ledger
+00-PRE-TEARDOWN-EXTRACTION.md|quorum is \*\*2\*\*
+121299-testnet-neva/README.md|quorum 2 of 3
+121299-testnet-neva/README.md|TESTNET_SERVER_PUBLIC_IP
+121212-mainnet-neva/recreate.md|2N/3
+README.md|MAINNET_V3_PUBLIC_IP
+README.md|~/hara-ops/hosts\.env
+hosts.env.example|^LEDGER_DOMAIN_TRACE="trace\.ledger\.haratrust\.io"
+131216-ledger/recreate.md|0x20090

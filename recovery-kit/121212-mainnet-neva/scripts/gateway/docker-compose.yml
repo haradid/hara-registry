@@ -1,0 +1,116 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hara-gateway-postgres
+    restart: unless-stopped
+    mem_limit: 300m
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"   # VM loopback only (SSH tunnel access), not public
+    networks: [gateway_net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hara-gateway-redis
+    restart: unless-stopped
+    mem_limit: 300m
+    command:
+      - redis-server
+      - --appendonly yes
+      - --maxmemory 256mb
+      - --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    networks: [gateway_net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build: ./gateway
+    container_name: hara-gateway
+    restart: unless-stopped
+    mem_limit: 300m
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      HAPROXY_HOST: ${HAPROXY_HOST}
+      HAPROXY_WRITE_HTTP_PORT: ${HAPROXY_WRITE_HTTP_PORT}
+      HAPROXY_WRITE_WS_PORT: ${HAPROXY_WRITE_WS_PORT}
+      HAPROXY_CALL_HTTP_PORT: ${HAPROXY_CALL_HTTP_PORT}
+      HAPROXY_ARCHIVE_HTTP_PORT: ${HAPROXY_ARCHIVE_HTTP_PORT}
+      HTTP_PORT: 4000
+      WS_PORT: 4001
+    ports:
+      - "127.0.0.1:4000:4000"
+      - "127.0.0.1:4001:4001"
+    networks: [gateway_net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  dashboard:
+    build: ./dashboard
+    container_name: hara-gateway-dashboard
+    restart: unless-stopped
+    mem_limit: 400m
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
+      NEXT_PUBLIC_GATEWAY_HTTP_URL: ${GATEWAY_PUBLIC_HTTP_URL}
+      NEXT_PUBLIC_GATEWAY_WS_URL: ${GATEWAY_PUBLIC_WS_URL}
+      HOSTNAME: "0.0.0.0"
+      COOKIE_SECURE: ${COOKIE_SECURE}
+      FAUCET_RPC_URL: ${FAUCET_RPC_URL}
+      FAUCET_CHAIN_ID: ${FAUCET_CHAIN_ID}
+      FAUCET_WHITELIST_CONTRACT: ${FAUCET_WHITELIST_CONTRACT}
+      FAUCET_EXPLORER_URL: ${FAUCET_EXPLORER_URL}
+      FAUCET_ALLOCATION_WEI: ${FAUCET_ALLOCATION_WEI}
+      FAUCET_ALLOCATION_DISPLAY: ${FAUCET_ALLOCATION_DISPLAY}
+      FAUCET_COOLDOWN_HOURS: ${FAUCET_COOLDOWN_HOURS}
+      FAUCET_PRIMARY_PRIVATE_KEY: ${FAUCET_PRIMARY_PRIVATE_KEY}
+      FAUCET_SECONDARY_PRIVATE_KEY: ${FAUCET_SECONDARY_PRIVATE_KEY}
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
+      TURNSTILE_EXPECTED_HOSTNAME: ${TURNSTILE_EXPECTED_HOSTNAME}
+      TURNSTILE_EXPECTED_ACTION: ${TURNSTILE_EXPECTED_ACTION}
+    ports:
+      - "127.0.0.1:4002:3000"
+    networks: [gateway_net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+networks:
+  gateway_net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:

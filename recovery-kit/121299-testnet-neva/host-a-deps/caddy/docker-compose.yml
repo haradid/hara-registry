@@ -1,0 +1,22 @@
+name: hara-tesnet-caddy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: hara-tesnet-caddy
+    restart: unless-stopped
+    network_mode: host
+    mem_limit: 80m
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  caddy_data:
+  caddy_config:
