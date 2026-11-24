@@ -18,3 +18,11 @@ secrets-inventory.md|secret/haraledger/validators
 secrets-inventory.md|secret/haraledger/admin-keys/admin-2026-05-27
 secrets-inventory.md|secret/haraledger/signer-keys/anchor-worker
 secrets-inventory.md|FAUCET_PRIVATE_KEY
+hosts.env.example|^LEDGER_MESH_SUBNET="10\.43\.0\.0/24"
+hosts.env.example|10\.42\.0\.0/24.*bridge
+hosts.env.example|topology\.md.*stale
+hosts.env.example|^LEDGER_DOMAIN_RPC="rpc\.ledger\.haratrust\.io"
+hosts.env.example|^MAINNET_CALL_PUBLIC_IP=
+hosts.env.example|^TESTNET_HOSTB_PUBLIC_IP=
+hosts.env.example|^MAINNET_HAPROXY_HOST="<MAINNET_V1_AWS_IP>"
+hosts.env.example|^TESTNET_HOSTA_PUBLIC_IP="<TESTNET_HOSTA_IP>"

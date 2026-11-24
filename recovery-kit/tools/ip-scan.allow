@@ -2,3 +2,10 @@
 # Only hosts whose addresses are already public in this repo and are being decommissioned (131216 ledger).
 # Live 121212/121299 hosts are NEVER listed here: use <MAINNET_*_IP>/<TESTNET_*_IP> placeholders (names = hosts.env vars).
 103.67.244.109  # hara-did-stg (131216 partner peer) — already public in doc/guides/operator-access.md; host being decommissioned
+202.155.18.234   # hara-v1 (131216) - already public in doc/state and doc/technical/devops-and-infrastructure.md; being decommissioned
+103.169.206.46   # hara-v2 (131216) - already public; being decommissioned
+103.169.206.127  # hara-v3 (131216) - already public; being decommissioned
+160.19.166.23    # hara-v4 (131216) - already public; being decommissioned
+103.169.206.237  # hara-rpc-1 (131216) - already public; being decommissioned
+103.169.206.239  # hara-stateless-2 (131216) - already public; being decommissioned
+103.67.244.250   # hara-stateful (131216) - already public; being decommissioned
