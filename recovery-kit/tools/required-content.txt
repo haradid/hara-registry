@@ -1,1 +1,20 @@
 # <kit-relative-path>|<ERE regex>  — one assertion per line; tasks append their own.
+00-PRE-TEARDOWN-EXTRACTION.md|quorum
+00-PRE-TEARDOWN-EXTRACTION.md|121212.*(4 of 7|4/7)
+00-PRE-TEARDOWN-EXTRACTION.md|121299.*(2 of 3|2/3)
+00-PRE-TEARDOWN-EXTRACTION.md|add-before-remove
+00-PRE-TEARDOWN-EXTRACTION.md|qbft_proposeValidatorVote
+00-PRE-TEARDOWN-EXTRACTION.md|FAUCET_PRIMARY_PRIVATE_KEY
+00-PRE-TEARDOWN-EXTRACTION.md|hara-backups\.txt
+00-PRE-TEARDOWN-EXTRACTION.md|ops/secrets\.txt
+00-PRE-TEARDOWN-EXTRACTION.md|s3-readback-check
+00-PRE-TEARDOWN-EXTRACTION.md|GetObject 403
+00-PRE-TEARDOWN-EXTRACTION.md|age -r
+00-PRE-TEARDOWN-EXTRACTION.md|E19
+00-PRE-TEARDOWN-EXTRACTION.md|<MAINNET_V3_IP>
+00-PRE-TEARDOWN-EXTRACTION.md|<TESTNET_HOSTB_IP>
+secrets-inventory.md|Never copy values
+secrets-inventory.md|secret/haraledger/validators
+secrets-inventory.md|secret/haraledger/admin-keys/admin-2026-05-27
+secrets-inventory.md|secret/haraledger/signer-keys/anchor-worker
+secrets-inventory.md|FAUCET_PRIVATE_KEY
