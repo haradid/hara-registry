@@ -1,5 +1,12 @@
 # Hara Registry Developer & Third-Party Integration Manual
 
+> **⚠ Superseded (2026-11-23).** This manual describes the previous Hara Registry chain
+> (chain ID `131216`, `*.ledger.haratrust.io`), which has been **decommissioned** — its
+> endpoints, contract addresses and SDK defaults are no longer valid. For the current
+> mainnet (`121212`) and testnet (`121299`) use
+> [`hara-registry-third-party-integration-manual.md`](hara-registry-third-party-integration-manual.md).
+> This file is kept for historical reference only.
+
 > **Audience**: developers and integrators writing code against Hara Registry.
 > **Goal**: connect your application, deploy contracts, move batches, anchor audit trails, and index events.
 
