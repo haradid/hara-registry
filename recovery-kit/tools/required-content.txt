@@ -73,3 +73,12 @@ hosts.env.example|^TESTNET_HOSTA_PUBLIC_IP="<TESTNET_HOSTA_IP>"
 121299-testnet-neva/recreate.md|repo-derived — verify before cutover
 121299-testnet-neva/scripts/config/genesis.json.template|121299
 121299-testnet-neva/scripts/ops/cleanup_quarterly_reset.sh|<TESTNET_HOSTB_IP>|HOST_B
+README.md|00-PRE-TEARDOWN-EXTRACTION\.md
+README.md|hosts\.env\.example
+README.md|verify-kit\.sh
+README.md|121212
+README.md|121299
+README.md|131216
+MANIFEST.md|Blockchain@mainnet-final:
+MANIFEST.md|Blockchain@testnet-final:
+MANIFEST.md|authored
