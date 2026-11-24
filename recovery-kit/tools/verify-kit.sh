@@ -33,7 +33,7 @@ while IFS= read -r -d '' f; do
 done < <(find "$KIT" -type f \( -name '.env' -o -name '.env.*' -o -name '*.env' -o -name '*.env.*' \) -not -name '*.example' -print0)
 
 # (4) secret scan
-SECRET_RE='0x[0-9a-fA-F]{64}|BEGIN [A-Z ]*PRIVATE KEY|AGE-SECRET-KEY-1|AKIA[0-9A-Z]{16}|(PASSWORD|PASSWD|SECRET|TOKEN|API_KEY|PRIVATE_KEY)[A-Z_]*[[:space:]]*[=:][[:space:]]*"?[A-Za-z0-9+/_@#%!.-]{8,}'
+SECRET_RE='0x[0-9a-fA-F]{64}|BEGIN [A-Z ]*PRIVATE KEY|AGE-SECRET-KEY-1|AKIA[0-9A-Z]{16}|(PASSWORD|PASSWD|SECRET|TOKEN|API_KEY|PRIVATE_KEY)[A-Z_]*[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9+/_@#%!.-]{8,}|PASSWORD[[:space:]]+'"'"'[^'"'"']{8,}'"'"''
 PLACEHOLDER_RE='change-me|CHANGE-ME|<FROM-VAULT:|<FROM-FILE:|<SUPPLY:|<redacted>|\$\{|process\.env|formData'
 GENESIS_RE='"(mixHash|balance|extraData|parentHash|coinbase|nonce)"'
 allowed=()

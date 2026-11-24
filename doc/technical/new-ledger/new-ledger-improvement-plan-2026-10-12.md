@@ -11,7 +11,7 @@
 - **Chain writes are operator-signed.** Validator votes, contract calls and key operations are run by an operator holding the keys. Nothing here assumes automation holds them.
 - **Config first.** Every config change lands in git first (see MN-11), then reaches hosts. No more live-only edits.
 - **Testnet before mainnet.** Where possible, rehearse a change on testnet before applying it to mainnet.
-- **Placeholders.** Host-specific values appear as `<VAR>`. IPs are the ones recorded in `mainnet_production/docs/ARCHITECTURE.md` and must be re-verified before use.
+- **Placeholders.** Host-specific values appear as `<VAR>`. IPs are the ones recorded in `mainnet_production/docs/ARCHITECTURE.md` and must be re-verified before use. Live `121212`/`121299` addresses are redacted to `<MAINNET_*_IP>`-style placeholders because this repository is mirrored publicly; the placeholder → variable mapping is in `recovery-kit/hosts.env.example`.
 
 ---
 
@@ -59,7 +59,7 @@
 
 ### MN-01 — Archive disk will fill around Oct 24–26
 **Evidence:**
-- Archive and Blockscout host `52.220.9.100` (AWS, FOREST+FULL, no pruning) is at ~105 of 193 GiB (54%).
+- Archive and Blockscout host `<MAINNET_ARCHIVE_IP>` (AWS, FOREST+FULL, no pruning) is at ~105 of 193 GiB (54%).
 - It grows ~6.5–7.8 GB/day (~45 KB per tx including Blockscout).
 - That leaves ~88 GiB, roughly 12 days.
 - There is no disk alert, because Alertmanager is dormant. (`mainnet_production/BACKLOG.md`)
@@ -177,24 +177,24 @@
 
 ### MN-03 — Close the public HAProxy bypass and the `call` node exposure
 **Evidence (BACKLOG, 2026-10-09, unremediated):**
-- HAProxy frontends 5797 (write) and 5799 (call) on validator1 `52.77.106.39` are reachable from the internet **with no API key**, so they bypass the gateway's auth, rate limits and metering.
-- On `call` (`202.155.19.177`), ufw is off and ports 9547 and 7798 are internet-reachable.
+- HAProxy frontends 5797 (write) and 5799 (call) on validator1 `<MAINNET_V1_AWS_IP>` are reachable from the internet **with no API key**, so they bypass the gateway's auth, rate limits and metering.
+- On `call` (`<MAINNET_CALL_IP>`), ufw is off and ports 9547 and 7798 are internet-reachable.
 
 **Speed impact:** unmetered clients can saturate the write and call pools directly. That pool is the one already lagging 20–65 s (MN-10).
 
-**Action plan:** only the gateway host (`103.143.12.68`) and the operators' bastion may reach 5797–5800. Enforce this at the cloud firewall, because Docker-published ports **ignore ufw**.
+**Action plan:** only the gateway host (`<MAINNET_GATEWAY_IP>`) and the operators' bastion may reach 5797–5800. Enforce this at the cloud firewall, because Docker-published ports **ignore ufw**.
 
 **Implementation steps:**
 1. Inventory what's listening:
    - On validator1: `sudo ss -ltnp | grep -E ':(579[7-9]|5800)'`.
-   - From outside: `nmap -Pn -p 5797-5800,8404,9547,7798 52.77.106.39 202.155.19.177`.
+   - From outside: `nmap -Pn -p 5797-5800,8404,9547,7798 <MAINNET_V1_AWS_IP> <MAINNET_CALL_IP>`.
 2. **AWS Security Group** on validator1 (primary control):
    - Remove `0.0.0.0/0` on 5797–5800 and 8404.
-   - Add `103.143.12.68/32` and `<BASTION_IP>/32`.
+   - Add `<MAINNET_GATEWAY_IP>/32` and `<BASTION_IP>/32`.
 3. Host layer (defence in depth). A Docker-published port skips ufw (the same issue the testnet hit with netstats), so use the `DOCKER-USER` chain:
    ```bash
    sudo iptables -I DOCKER-USER -p tcp -m multiport --dports 5797:5800,8404 -j DROP
-   sudo iptables -I DOCKER-USER -p tcp -s 103.143.12.68 -m multiport --dports 5797:5800 -j ACCEPT
+   sudo iptables -I DOCKER-USER -p tcp -s <MAINNET_GATEWAY_IP> -m multiport --dports 5797:5800 -j ACCEPT
    sudo iptables -I DOCKER-USER -p tcp -s <BASTION_IP> -m multiport --dports 5797:5800,8404 -j ACCEPT
    ```
    Make the rules persistent with a systemd unit that re-applies them after `dockerd` restarts (the testnet's `netstats-firewall-restrict.service` is a working template).
@@ -215,7 +215,7 @@
 
 ### MN-04 — SSH hardening on NevaCloud hosts + validator3 host-key verification
 **Evidence (BACKLOG, 2026-10-09):**
-- NevaCloud hosts (validator3/4/5, `call`, proxy `103.143.12.68`) have `PermitRootLogin yes` and password auth.
+- NevaCloud hosts (validator3/4/5, `call`, proxy `<MAINNET_GATEWAY_IP>`) have `PermitRootLogin yes` and password auth.
 - ~22k failed logins per day; no fail2ban.
 - validator3's **SSH host key changed** and was never verified.
 
@@ -226,7 +226,7 @@
 **Implementation steps:**
 1. **validator3 first:**
    - Get the expected fingerprint from the NevaCloud **web console**, not over SSH: `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`.
-   - Compare it with what your client sees: `ssh-keyscan -t ed25519 116.212.73.232 | ssh-keygen -lf -`.
+   - Compare it with what your client sees: `ssh-keyscan -t ed25519 <MAINNET_V3_IP> | ssh-keygen -lf -`.
    - If they differ, or the host was reinstalled without a record, review it:
      - `last -a`, `journalctl -u ssh --since -30d`
      - `/root/.ssh/authorized_keys`, `/etc/passwd`
@@ -373,7 +373,7 @@
 **Implementation steps:**
 1. Create a backup age keypair on the operator workstation: `deploy/ops/backup-setup.sh`. **The private key stays off the servers.** Store it in the password manager.
 2. Create an object-storage bucket with **write-only** credentials for the host and **read** credentials for operators. The old registry hit `GetObject 403` because only write credentials existed, so test reads up front.
-3. On the gateway host `103.143.12.68`, a script `/opt/hara-backup/pg-backup.sh`:
+3. On the gateway host `<MAINNET_GATEWAY_IP>`, a script `/opt/hara-backup/pg-backup.sh`:
    ```bash
    #!/usr/bin/env bash
    set -euo pipefail
@@ -474,7 +474,7 @@
    - `mem_limit` = observed peak RSS + 30%.
    - `-Xmx` at about 35–40% of `mem_limit`. Besu's off-heap usage (RocksDB, jemalloc) is large.
    - Keep jemalloc on (Besu's launcher sets it; make sure `BESU_OPTS` doesn't override `LD_PRELOAD`).
-3. validator6 (corp1 `47.131.59.107`): raise `cpus` from 0.7 to host vCPU − 0.2 after the validator2 24 h observation passes. RAM is tight (3.8 GB), so either size `mem_limit` ≈ 3.2 GB / `-Xmx1152m`, or upgrade the instance.
+3. validator6 (corp1 `<MAINNET_V6_IP>`): raise `cpus` from 0.7 to host vCPU − 0.2 after the validator2 24 h observation passes. RAM is tight (3.8 GB), so either size `mem_limit` ≈ 3.2 GB / `-Xmx1152m`, or upgrade the instance.
 4. Record the final values in git (MN-11). Apply with `docker compose up -d --force-recreate <svc>`, **one validator at a time**, waiting for it to propose again before moving on.
 
 **Verify:**
@@ -486,7 +486,7 @@
 
 ### MN-10 — Fix `call` read-pool saturation (head lag 20–65 s)
 **Evidence:**
-- The single `call` node (`202.155.19.177`, NevaCloud, FULL sync) hits ~285% of its 2.75-core limit during `eth_estimateGas`/`eth_call` bursts from the main consumer.
+- The single `call` node (`<MAINNET_CALL_IP>`, NevaCloud, FULL sync) hits ~285% of its 2.75-core limit during `eth_estimateGas`/`eth_call` bursts from the main consumer.
 - It lags the head by 20–65 s.
 - Lifecycle methods were already re-routed to rpc1 (`archiveRouter.ts`, HAProxy body ACL).
 
@@ -579,7 +579,7 @@ This also feeds the NevaCloud recovery kit.
 ## 4. P2: within a month
 
 ### MN-13 — Remove validator1 as a single point of failure
-**Evidence:** validator1 (`52.77.106.39`, 2 vCPU / 7.6 GB) runs a **sealer**, HAProxy (all four frontends), every SSH tunnel to rpc1/call/archive, Prometheus, Grafana and netstats.
+**Evidence:** validator1 (`<MAINNET_V1_AWS_IP>`, 2 vCPU / 7.6 GB) runs a **sealer**, HAProxy (all four frontends), every SSH tunnel to rpc1/call/archive, Prometheus, Grafana and netstats.
 
 **Speed impact:**
 - Block production on validator1 competes with LB and monitoring CPU.

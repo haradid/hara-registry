@@ -60,7 +60,7 @@ bash recovery-kit/tools/verify-kit.sh                   # verify-kit: OK
 
 `verify-kit.sh` checks: every shell script parses; no CRLF in scripts/configs; no `.env`,
 `.env.local` or `*.env` file in the kit; no secret-shaped value (64-hex keys, private-key blocks,
-`PASSWORD=…`); no `10.42.0.x` docker-bridge address used as a host; every
+`PASSWORD=…`, SQL `PASSWORD '…'`); no `10.42.0.x` docker-bridge address used as a host; every
 `tools/required-content.txt` fact present; every referenced repo and Blockchain path exists; every
 file listed in `MANIFEST.md`; no public IPv4 literal — dotted or hyphenated `sslip.io`/`nip.io` form —
 outside `tools/ip-scan.allow`. CI runs gitleaks on the same tree.
