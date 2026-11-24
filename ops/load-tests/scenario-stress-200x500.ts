@@ -45,6 +45,25 @@ const CHAIN_ID = Number(process.env.CHAIN_ID ?? 131216);
 const SEED = process.env.SEED ?? `stress-${Date.now()}`;
 const BASE_BATCH_ID = BigInt(process.env.BASE_BATCH_ID ?? Date.now());
 
+// ── Opt-in speedups (all off by default → reproduces the 2026-05/06 runs exactly) ──
+// FAST_SETUP=1       Verification reads go out as JSON-RPC batches (READ_BATCH_SIZE per
+//                    request) instead of one request per wallet; wallets that are already
+//                    primed/approved are skipped (re-runs with the same SEED need ~no setup);
+//                    each setup phase is submitted in one shot with a single wait.
+// SKIP_PRIME=1       Skip Phase A. ONLY for chains that accept zero-balance senders (e.g. the
+//                    HARA testnet 121299). On chains where Besu's SenderBalanceChecker rejects
+//                    unknown accounts this re-creates validator-pool zombies — leave it off.
+// PHASE_C_CHUNK=N    Phase C txs per submission (default 15).
+// PHASE_C_WAIT_EACH=0  Submit Phase C chunks back-to-back and wait once at the end.
+// SKIP_PHASE_C=1     Stop after setup (measures setup / wallet reuse without chain load).
+const FAST_SETUP = process.env.FAST_SETUP === "1";
+const SKIP_PRIME = process.env.SKIP_PRIME === "1";
+const SKIP_PHASE_C = process.env.SKIP_PHASE_C === "1";
+const PHASE_C_CHUNK = Number(process.env.PHASE_C_CHUNK ?? 15);
+const PHASE_C_WAIT_EACH = process.env.PHASE_C_WAIT_EACH !== "0";
+const READ_BATCH_SIZE = Number(process.env.READ_BATCH_SIZE ?? 50);
+const SETUP_CHUNK = Number(process.env.SETUP_CHUNK ?? 500);
+
 const ERC1155_ABI = parseAbi([
   "function setApprovalForAll(address operator, bool approved)",
   "function isApprovedForAll(address account, address operator) view returns (bool)",
@@ -164,6 +183,49 @@ async function batchSendRawTxs(
   return results.map(r => r ?? new Error("unresolved after retries"));
 }
 
+// Batched JSON-RPC reads (FAST_SETUP): one HTTP request per READ_BATCH_SIZE calls. Through a
+// rate-limited gateway over the internet this turns ~400 sequential round-trips into ~8.
+async function batchRead(url: string, calls: { method: string; params: unknown[] }[]): Promise<any[]> {
+  const out: any[] = new Array(calls.length);
+  for (let s = 0; s < calls.length; s += READ_BATCH_SIZE) {
+    const slice = calls.slice(s, s + READ_BATCH_SIZE);
+    for (let attempt = 0; ; attempt++) {
+      let ok = false;
+      try {
+        const res = await fetch(url, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(slice.map((c, k) => ({ jsonrpc: "2.0", id: k, method: c.method, params: c.params }))),
+        });
+        const ct = res.headers.get("content-type") ?? "";
+        if (res.ok && ct.includes("json")) {
+          const arr = await res.json() as any[];
+          const byId = new Map<number, any>((Array.isArray(arr) ? arr : [arr]).map(r => [r.id, r]));
+          if (slice.every((_, k) => byId.get(k) && !byId.get(k).error)) {
+            slice.forEach((_, k) => { out[s + k] = byId.get(k).result; });
+            ok = true;
+          }
+        }
+      } catch { /* transient — retried below */ }
+      if (ok) break;
+      if (attempt >= 12) throw new Error(`batchRead: slice starting at ${s} failed after retries`);
+      await sleep(2500);
+    }
+  }
+  return out;
+}
+
+const balancesOf = async (idx: number[]): Promise<bigint[]> =>
+  (await batchRead(RPC_READ, idx.map(i => ({ method: "eth_getBalance", params: [wallets[i].address, "latest"] }))))
+    .map(h => BigInt(h));
+const approvalsOf = async (idx: number[]): Promise<boolean[]> =>
+  (await batchRead(RPC_READ, idx.map(i => ({
+    method: "eth_call",
+    params: [{ to: TOKEN, data: encodeFunctionData({ abi: ERC1155_ABI, functionName: "isApprovedForAll", args: [wallets[i].address, RELAY] }) }, "latest"],
+  })))).map(h => BigInt(h) === 1n);
+const noncesOf = async (idx: number[]): Promise<number[]> =>
+  (await batchRead(RPC_READ, idx.map(i => ({ method: "eth_getTransactionCount", params: [wallets[i].address, "pending"] }))))
+    .map(h => Number(BigInt(h)));
+
 // Chunked submit: sends txs in groups of CHUNK_SIZE and waits for each chunk's
 // last receipt before moving on. Avoids Besu's broadcast rate-limit piling up
 // hundreds of pending txs from different senders (each with nonce=0) which
@@ -221,6 +283,7 @@ async function batchSendChunked(
   console.log(`  Base batchId: ${BASE_BATCH_ID}`);
   console.log(`  Token: ${TOKEN}`);
   console.log(`  Relay: ${RELAY}`);
+  console.log(`  Mode:  FAST_SETUP=${+FAST_SETUP} SKIP_PRIME=${+SKIP_PRIME} PHASE_C_CHUNK=${PHASE_C_CHUNK} PHASE_C_WAIT_EACH=${+PHASE_C_WAIT_EACH}`);
   console.log("═══════════════════════════════════════════════════════════════");
 
   const startAll = Date.now();
@@ -231,55 +294,102 @@ async function batchSendChunked(
   // — SenderBalanceChecker throws on the missing account and the validator
   // pool keeps the tx forever, blocking the chain until all 4 validators are
   // simultaneously restarted. See validator-pool-zombies (memory) / 2026-05-27.
+  const allIdx = wallets.map((_, i) => i);
   console.log(`\n▶ A. Priming ${HOPS} wallets with 1 wei native HARA...`);
   let depNonce = await publicClient.getTransactionCount({ address: deployer.address, blockTag: "pending" });
   const primeStart = Date.now();
-  const primeRaws: Hex[] = [];
-  for (let i = 0; i < HOPS; i++) {
-    primeRaws.push(await deployer.signTransaction({
-      type: "legacy", chainId: CHAIN_ID, nonce: depNonce + i,
-      to: wallets[i].address, value: 1n, gasPrice: 0n, gas: 21_000n,
-    }));
-  }
-  await batchSendChunked(RPC_WRITE, publicClient, primeRaws, "prime");
-  depNonce += HOPS;
+  if (SKIP_PRIME) {
+    console.log(`  (SKIP_PRIME=1: chain accepts zero-balance senders — priming skipped)`);
+  } else {
+    let toPrime = allIdx;
+    if (FAST_SETUP) {
+      const bals = await balancesOf(allIdx);
+      toPrime = allIdx.filter(i => bals[i] < 1n);
+      if (toPrime.length < HOPS) console.log(`  ${HOPS - toPrime.length} wallets already primed (reused) — skipping them`);
+    }
+    const primeRaws: Hex[] = [];
+    for (let k = 0; k < toPrime.length; k++) {
+      primeRaws.push(await deployer.signTransaction({
+        type: "legacy", chainId: CHAIN_ID, nonce: depNonce + k,
+        to: wallets[toPrime[k]].address, value: 1n, gasPrice: 0n, gas: 21_000n,
+      }));
+    }
+    // All priming txs come from the deployer with sequential nonces, so in FAST_SETUP the final
+    // receipt (waited for inside batchSendChunked) implies every earlier one is mined.
+    if (primeRaws.length) {
+      await batchSendChunked(RPC_WRITE, publicClient, primeRaws, "prime",
+        FAST_SETUP ? { waitBetweenChunks: false, chunkSize: SETUP_CHUNK } : {});
+    }
+    depNonce += toPrime.length;
 
-  process.stderr.write(`  verifying ${HOPS} wallet balances...\n`);
-  const unfunded: number[] = [];
-  for (let i = 0; i < HOPS; i++) {
-    const bal = await publicClient.getBalance({ address: wallets[i].address });
-    if (bal < 1n) unfunded.push(i);
+    process.stderr.write(`  verifying ${HOPS} wallet balances...\n`);
+    let unfunded: number[] = [];
+    if (FAST_SETUP) {
+      const bals = await balancesOf(allIdx);
+      unfunded = allIdx.filter(i => bals[i] < 1n);
+    } else {
+      for (let i = 0; i < HOPS; i++) {
+        const bal = await publicClient.getBalance({ address: wallets[i].address });
+        if (bal < 1n) unfunded.push(i);
+      }
+    }
+    if (unfunded.length) {
+      throw new Error(
+        `Phase A incomplete: ${unfunded.length}/${HOPS} wallets unfunded ` +
+        `(indices ${unfunded.slice(0, 10).join(",")}${unfunded.length > 10 ? "..." : ""}). ` +
+        `Abort before Phase B to avoid creating validator pool zombies.`,
+      );
+    }
   }
-  if (unfunded.length) {
-    throw new Error(
-      `Phase A incomplete: ${unfunded.length}/${HOPS} wallets unfunded ` +
-      `(indices ${unfunded.slice(0, 10).join(",")}${unfunded.length > 10 ? "..." : ""}). ` +
-      `Abort before Phase B to avoid creating validator pool zombies.`,
-    );
-  }
-  console.log(`  ✔ ${HOPS} primed and verified in ${Date.now() - primeStart}ms`);
+  const primeMs = Date.now() - primeStart;
+  console.log(`  ✔ ${HOPS} primed and verified in ${primeMs}ms`);
 
   // ── Phase B — Approve relay (each wallet nonce=0, parallel + verified) ──
   console.log(`\n▶ B. ${HOPS} senders setApprovalForAll(relay, true)...`);
   const apprStart = Date.now();
   const apprData = encodeFunctionData({ abi: ERC1155_ABI, functionName: "setApprovalForAll", args: [RELAY, true] });
+  let toApprove = allIdx;
+  const nonces: number[] = allIdx.map(() => 0);
+  if (FAST_SETUP) {
+    const approved = await approvalsOf(allIdx);
+    toApprove = allIdx.filter(i => !approved[i]);
+    if (toApprove.length < HOPS) console.log(`  ${HOPS - toApprove.length} wallets already approved (reused) — skipping them`);
+    // A reused wallet may already have spent nonce 0; ask the chain instead of assuming it.
+    const n = await noncesOf(toApprove);
+    toApprove.forEach((i, k) => { nonces[i] = n[k]; });
+  }
   const apprRaws: Hex[] = [];
-  for (const w of wallets) {
-    apprRaws.push(await w.signTransaction({
-      type: "legacy", chainId: CHAIN_ID, nonce: 0,
+  for (const i of toApprove) {
+    apprRaws.push(await wallets[i].signTransaction({
+      type: "legacy", chainId: CHAIN_ID, nonce: nonces[i],
       to: TOKEN, data: apprData, value: 0n, gasPrice: 0n, gas: 60_000n,
     }));
   }
-  await batchSendChunked(RPC_WRITE, publicClient, apprRaws, "approvals");
+  if (apprRaws.length) {
+    // Different senders: the last hash says nothing about the others, so FAST_SETUP submits in one
+    // shot and then polls the batched approval check below until every wallet is approved.
+    await batchSendChunked(RPC_WRITE, publicClient, apprRaws, "approvals",
+      FAST_SETUP ? { waitBetweenChunks: false, chunkSize: SETUP_CHUNK } : {});
+  }
 
   process.stderr.write(`  verifying ${HOPS} approvals...\n`);
-  const notApproved: number[] = [];
-  for (let i = 0; i < HOPS; i++) {
-    const ok = await publicClient.readContract({
-      address: TOKEN, abi: ERC1155_ABI, functionName: "isApprovedForAll",
-      args: [wallets[i].address, RELAY],
-    });
-    if (!ok) notApproved.push(i);
+  let notApproved: number[] = [];
+  if (FAST_SETUP) {
+    const deadline = Date.now() + 180_000;
+    for (;;) {
+      const approved = await approvalsOf(allIdx);
+      notApproved = allIdx.filter(i => !approved[i]);
+      if (!notApproved.length || Date.now() > deadline) break;
+      await sleep(2000);
+    }
+  } else {
+    for (let i = 0; i < HOPS; i++) {
+      const ok = await publicClient.readContract({
+        address: TOKEN, abi: ERC1155_ABI, functionName: "isApprovedForAll",
+        args: [wallets[i].address, RELAY],
+      });
+      if (!ok) notApproved.push(i);
+    }
   }
   if (notApproved.length) {
     throw new Error(
@@ -288,7 +398,13 @@ async function batchSendChunked(
       `Phase C would revert mid-chain — fix before retrying.`,
     );
   }
-  console.log(`  ✔ ${HOPS} approvals confirmed in ${Date.now() - apprStart}ms`);
+  const apprMs = Date.now() - apprStart;
+  console.log(`  ✔ ${HOPS} approvals confirmed in ${apprMs}ms`);
+
+  if (SKIP_PHASE_C) {
+    console.log(`\n  SKIP_PHASE_C=1 — setup only. Setup (A+B): ${((primeMs + apprMs) / 1000).toFixed(1)}s`);
+    return;
+  }
 
   // ── Phase C — Submit all CHAINS mint+executeChain pairs concurrently ────
   console.log(`\n▶ C. ${CHAINS} chains: mint + executeChain(${HOPS - 1} hops)...`);
@@ -325,21 +441,25 @@ async function batchSendChunked(
   }
   console.log(`  Signed ${allRaws.length} txs in ${Date.now() - chainStart}ms`);
 
-  // Phase C uses chunks of 25 with per-chunk receipt wait. Heavy executeChain txs
+  // Phase C defaults to chunks of 15 with a per-chunk receipt wait. Heavy executeChain txs
   // (250+ hops) hit a per-sender ~200-deep wall in Besu's pool when submitted en
   // masse — pool maintenance can't validate them all and the higher-nonce txs get
   // silently dropped. Keeping pool depth <200 from any one sender at all times
   // works around this. Confirmed during 2026-05-27 investigation.
+  // PHASE_C_CHUNK / PHASE_C_WAIT_EACH tune this: each waited chunk costs one block, so on a
+  // chain with spare block capacity a bigger chunk means proportionally fewer blocks. Keep
+  // PHASE_C_CHUNK well under ~200 so a single sender's pool depth stays below that wall.
   const submitStart = Date.now();
   const successHashes = await batchSendChunked(RPC_WRITE, publicClient, allRaws, "chains", {
-    waitBetweenChunks: true,
-    chunkSize: 15,
+    waitBetweenChunks: PHASE_C_WAIT_EACH,
+    chunkSize: PHASE_C_CHUNK,
     receiptTimeoutMs: 600_000,
   });
   if (successHashes.length !== allRaws.length) {
     throw new Error(`Phase C: only ${successHashes.length}/${allRaws.length} txs accepted at submission`);
   }
-  console.log(`  ✔ All ${successHashes.length}/${allRaws.length} txs confirmed in ${Date.now() - submitStart}ms`);
+  const phaseCMs = Date.now() - submitStart;
+  console.log(`  ✔ All ${successHashes.length}/${allRaws.length} txs confirmed in ${phaseCMs}ms`);
 
   // Get the LAST executeChain receipt for block info
   const lastExec = successHashes[successHashes.length - 1];
@@ -368,6 +488,8 @@ async function batchSendChunked(
   console.log(`  Total transfers:  ${totalTransfers}`);
   console.log(`  Wall clock:       ${(totalElapsed / 1000).toFixed(1)}s`);
   console.log(`  Effective TPS:    ${(totalTransfers / (totalElapsed / 1000)).toFixed(0)} transfers/s`);
+  console.log(`  Setup (A+B):      ${((primeMs + apprMs) / 1000).toFixed(1)}s   Phase C: ${(phaseCMs / 1000).toFixed(1)}s`);
+  console.log(`  Phase C rate:     ${(totalTransfers / (phaseCMs / 1000)).toFixed(0)} transfers/s`);
   console.log(`  Avg gas/tx:       ${avgGasPerTx}`);
   console.log(`  Est. total gas:   ${estTotalGas} (~${Number(estTotalGas) / 1e9}B)`);
   console.log(`  Last block:       ${lastReceipt.blockNumber}`);
