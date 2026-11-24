@@ -1,0 +1,3 @@
+# Public IPv4 literals allowed in the kit. One per line, then "  # reason".
+# Only hosts whose addresses are already public in this repo and are being decommissioned (131216 ledger).
+# Live 121212/121299 hosts are NEVER listed here: use <MAINNET_*_IP>/<TESTNET_*_IP> placeholders (names = hosts.env vars).

@@ -1,0 +1,1 @@
+# <kit-relative-path>|<ERE regex>  — one assertion per line; tasks append their own.
