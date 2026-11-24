@@ -62,3 +62,14 @@ hosts.env.example|^TESTNET_HOSTA_PUBLIC_IP="<TESTNET_HOSTA_IP>"
 121212-mainnet-neva/recreate.md|permitopen
 121212-mainnet-neva/recreate.md|repo-derived — verify before cutover
 121212-mainnet-neva/scripts/config/genesis.json|"chainId": 121212
+121299-testnet-neva/README.md|<TESTNET_HOSTB_IP>
+121299-testnet-neva/README.md|<TESTNET_HOSTA_IP>
+121299-testnet-neva/README.md|quorum.*3
+121299-testnet-neva/recreate.md|validator3_reset_remote\.sh
+121299-testnet-neva/recreate.md|hara-quarterly-reset-key
+121299-testnet-neva/recreate.md|host\.docker\.internal:5797
+121299-testnet-neva/recreate.md|DOCKER-USER
+121299-testnet-neva/recreate.md|sync-mode=FULL
+121299-testnet-neva/recreate.md|repo-derived — verify before cutover
+121299-testnet-neva/scripts/config/genesis.json.template|121299
+121299-testnet-neva/scripts/ops/cleanup_quarterly_reset.sh|<TESTNET_HOSTB_IP>|HOST_B

@@ -1,0 +1,13 @@
+Testnet — 2 host sejak load-splitting 2026-09-10 (lihat docs/ARCHITECTURE.md)
+
+Host A (validator1 + validator2 + netstats + caddy):
+  ip   : <TO_BE_FILLED>
+  user : <TO_BE_FILLED>
+  port : <TO_BE_FILLED>
+
+Host B (validator3 + gateway + dashboard + postgres + redis):
+  ip   : <TO_BE_FILLED>
+  user : <TO_BE_FILLED>
+  port : <TO_BE_FILLED>
+
+# Setelah diisi, copy file ini jadi "access.txt" per host (sudah gitignored, jangan commit).

@@ -1,0 +1,31 @@
+rpc.mampang.haratoken.app {
+	@websockets {
+		header Connection *Upgrade*
+		header Upgrade    websocket
+	}
+	handle @websockets {
+		reverse_proxy <TESTNET_HOSTB_IP>:4001
+	}
+	handle {
+		reverse_proxy <TESTNET_HOSTB_IP>:4000
+	}
+}
+
+dashboard.mampang.haratoken.app {
+	reverse_proxy <TESTNET_HOSTB_IP>:4002
+}
+
+netstats.mampang.haratoken.app {
+	reverse_proxy 127.0.0.1:3001
+}
+
+# Block explorer lives as /explorer/* inside the SAME dashboard Next.js app (no separate
+# container -- see docs/GATEWAY_FEATURES.md for why) -- this site block just gives it its
+# own clean URL by prepending /explorer before proxying to the dashboard backend.
+explorer.mampang.haratoken.app {
+	@notExplorer {
+		not path /explorer* /_next*
+	}
+	rewrite @notExplorer /explorer{uri}
+	reverse_proxy <TESTNET_HOSTB_IP>:4002
+}

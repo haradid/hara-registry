@@ -1,0 +1,132 @@
+name: hara-tesnet-gateway
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hara-tesnet-gateway-postgres
+    restart: unless-stopped
+    mem_limit: 220m
+    shm_size: 64m
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - max_connections=30
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"   # loopback only (SSH tunnel access), not public
+    networks: [gateway_net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hara-tesnet-gateway-redis
+    restart: unless-stopped
+    mem_limit: 100m
+    command:
+      - redis-server
+      - --appendonly yes
+      - --maxmemory 48mb
+      - --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    networks: [gateway_net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build: ./gateway
+    container_name: hara-tesnet-gateway
+    restart: unless-stopped
+    mem_limit: 150m
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      # Nama var dipertahankan HAPROXY_* dari cloud_1 (app code membacanya begitu),
+      # tapi di sini diarahkan LANGSUNG ke validator1 (yang merangkap RPC sejak rpc1 di-retire
+      # 2026-08-28; tidak ada HAProxy di testnet ini —
+      # cuma 1 backend RPC, tidak perlu load balancer).
+      HAPROXY_HOST: ${RPC_HOST}
+      HAPROXY_HTTP_PORT: ${RPC_HTTP_PORT}
+      HAPROXY_WS_PORT: ${RPC_WS_PORT}
+      HTTP_PORT: 4000
+      WS_PORT: 4001
+      # Unauthenticated /v1/public path — try-it-out access, deliberately far below the
+      # api_keys default (10 rps / 100000 daily). Per-source-IP, HTTP+WS share one bucket.
+      PUBLIC_RPS_LIMIT: ${PUBLIC_RPS_LIMIT:-1}
+      PUBLIC_DAILY_QUOTA: ${PUBLIC_DAILY_QUOTA:-100}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      # loopback only — akses publik lewat Caddy (443, ../caddy/), bukan langsung.
+      # Caddy jalan network_mode: host jadi tetap reach 127.0.0.1 di sini.
+      - "0.0.0.0:4000:4000"
+      - "0.0.0.0:4001:4001"
+    networks: [gateway_net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  dashboard:
+    build: ./dashboard
+    container_name: hara-tesnet-gateway-dashboard
+    restart: unless-stopped
+    mem_limit: 220m
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
+      NEXT_PUBLIC_GATEWAY_HTTP_URL: ${GATEWAY_PUBLIC_HTTP_URL}
+      NEXT_PUBLIC_GATEWAY_WS_URL: ${GATEWAY_PUBLIC_WS_URL}
+      HOSTNAME: "0.0.0.0"
+      # Caddy terminates TLS di depan dashboard sekarang — aman set Secure cookie.
+      COOKIE_SECURE: "true"
+      # Faucet: kirim langsung ke validator1 (loopback host, merangkap RPC sejak rpc1
+      # di-retire 2026-08-28), tidak lewat gateway/API key.
+      FAUCET_PRIVATE_KEY: ${FAUCET_PRIVATE_KEY}
+      FAUCET_RPC_HOST: ${RPC_HOST}
+      FAUCET_RPC_HTTP_PORT: ${RPC_HTTP_PORT}
+      FAUCET_DRIP_AMOUNT_ETH: ${FAUCET_DRIP_AMOUNT_ETH:-10}
+      FAUCET_COOLDOWN_HOURS: ${FAUCET_COOLDOWN_HOURS:-24}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "0.0.0.0:4002:3000"   # loopback only — lihat catatan gateway ports di atas
+    networks: [gateway_net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+networks:
+  gateway_net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:

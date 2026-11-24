@@ -1,0 +1,22 @@
+name: hara-tesnet-netstats
+
+services:
+  eth-netstats:
+    build:
+      context: .
+    image: hara-tesnet/eth-netstats:local
+    container_name: hara-tesnet-netstats
+    restart: unless-stopped
+    # 150m sempat kena OOM-kill (SIGKILL) — usage steady-state ~113-137MB, cuma sedikit
+    # headroom dari 150m. Dinaikkan setelah insiden nyata 2026-08-27.
+    mem_limit: 260m
+    environment:
+      WS_SECRET: ${NETSTATS_SECRET}
+      PORT: "3000"
+    ports:
+      - "127.0.0.1:3001:3000"   # loopback only — akses publik lewat Caddy (443), ../caddy/
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
