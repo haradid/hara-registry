@@ -391,7 +391,7 @@
    - Assert row counts for `api_keys` and `users` are greater than 0.
    - Write the result JSON and alert on failure (MN-08).
 5. Optional: point-in-time recovery with `archive_mode=on`, `archive_command` shipping WAL, and a nightly `pg_basebackup` (`snapshot-postgres-wal.sh` and `-basebackup.sh`). Do this only if losing up to 24 h of usage data is unacceptable.
-6. Repeat on the testnet Host B (`103.169.206.10`). Without it, the quarterly reset keeps the gateway database but nothing protects it.
+6. Repeat on the testnet Host B. Without it, the quarterly reset keeps the gateway database but nothing protects it.
 
 **Verify:** an object appears in the bucket nightly; the drill passes; `rclone cat` of the latest object works with the operator's read credentials.
 

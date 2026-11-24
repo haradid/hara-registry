@@ -3,7 +3,7 @@
 **Date:** 2026-10-12
 **Old:** Hara Registry, chainId **131216** (`hara-ledger` repo; NevaCloud, `*.ledger.haratrust.io`)
 **New:** HARA Ledger mainnet **121212** (`dattabot/Blockchain@mainnet-final`, `mainnet_production/`) and testnet **121299** (`@testnet-final`, `tesnet_server/`)
-**Method:** Both codebases were read in full; nothing was built or deployed. The new testnet was also probed live and benchmarked (§6). The old registry was **unreachable** on 2026-10-12: `rpc.ledger.haratrust.io` resolves to `103.169.206.239`, but TCP connections time out. So its numbers below are the recorded benchmarks, not a fresh run.
+**Method:** Both codebases were read in full; nothing was built or deployed. The new testnet was also probed live and benchmarked (§6). The old registry was **unreachable** on 2026-10-12: `rpc.ledger.haratrust.io` still resolved in DNS, but TCP connections timed out. So its numbers below are the recorded benchmarks, not a fresh run.
 
 ---
 
