@@ -26,3 +26,27 @@ hosts.env.example|^MAINNET_CALL_PUBLIC_IP=
 hosts.env.example|^TESTNET_HOSTB_PUBLIC_IP=
 hosts.env.example|^MAINNET_HAPROXY_HOST="<MAINNET_V1_AWS_IP>"
 hosts.env.example|^TESTNET_HOSTA_PUBLIC_IP="<TESTNET_HOSTA_IP>"
+131216-ledger/README.md|hara-stateful
+131216-ledger/README.md|[Bb]ring-up order
+131216-ledger/README.md|10\.43\.0\.20
+131216-ledger/README.md|topology\.md.*stale
+131216-ledger/recreate.md|cloud-init\.yaml
+131216-ledger/recreate.md|wg-bootstrap\.sh
+131216-ledger/recreate.md|vault-raft-init\.sh
+131216-ledger/recreate.md|vault-approle-bootstrap\.sh
+131216-ledger/recreate.md|secrets-bootstrap\.sh init
+131216-ledger/recreate.md|bringup-phase7\.sh
+131216-ledger/recreate.md|INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER=true
+131216-ledger/recreate.md|hostname -s
+131216-ledger/recreate.md|repo-derived — verify before cutover
+131216-ledger/monitoring.md|besu-overview\.json
+131216-ledger/monitoring.md|rpc-tier\.json
+131216-ledger/monitoring.md|console\.platform\.haratrust\.io
+131216-ledger/monitoring.md|:8404
+131216-ledger/backup-restore.md|hara-backups-postgres-wal
+131216-ledger/backup-restore.md|hara-backups-vault
+131216-ledger/backup-restore.md|pitr-restore-drill\.sh
+131216-ledger/backup-restore.md|GetObject 403
+131216-ledger/scripts-manifest.md|`deploy/ops/install-backup-timers\.sh`
+131216-ledger/scripts-manifest.md|`deploy/chain/init/init\.sh`
+131216-ledger/scripts-manifest.md|`deploy/edge/Caddyfile`
