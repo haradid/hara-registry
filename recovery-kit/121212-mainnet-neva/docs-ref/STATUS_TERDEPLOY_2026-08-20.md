@@ -159,7 +159,7 @@ Daftar container ini cocok persis dengan info topologi yang dikonfirmasi tim: "A
 
 | Layanan | URL | Status Terverifikasi |
 |---|---|---|
-| Explorer | http://<MAINNET_ARCHIVE_IP>/ → `https://52-220-9-100.sslip.io/` | ✅ HTTP 301 (redirect aktif) |
+| Explorer | http://<MAINNET_ARCHIVE_IP>/ → `https://<MAINNET_ARCHIVE_SSLIP_HOST>/` | ✅ HTTP 301 (redirect aktif) |
 | RPC HTTP | http://<MAINNET_V1_AWS_IP>:5797 | ✅ Merespons (chainId 121212 dikonfirmasi) |
 | RPC WebSocket | ws://<MAINNET_V1_AWS_IP>:5798 | Belum dites langsung |
 | Netstats | http://<MAINNET_V1_AWS_IP>:3001/ | ✅ HTTP 200 |
@@ -304,7 +304,7 @@ Meniru pola `mampang.haratoken.app` (Caddy + Let's Encrypt otomatis), tapi terse
 | `dashboard.registry.haratoken.app` | `127.0.0.1:4002` | Azure (gateway) | ✅ |
 | `netstats.registry.haratoken.app` | `127.0.0.1:3001` | AWS validator1 | ✅ HTTP 200 |
 | `grafana.registry.haratoken.app` | `127.0.0.1:3000` | AWS validator1 | ✅ HTTP 302 (redirect login, normal) |
-| `explorer.registry.haratoken.app` | Blockscout (via edge-proxy existing) | AWS archive-new | ✅ — domain ditambahkan ke Caddyfile existing (`52-220-9-100.sslip.io, explorer.registry.haratoken.app { ... }`), bukan dibuat dari nol |
+| `explorer.registry.haratoken.app` | Blockscout (via edge-proxy existing) | AWS archive-new | ✅ — domain ditambahkan ke Caddyfile existing (`<MAINNET_ARCHIVE_SSLIP_HOST>, explorer.registry.haratoken.app { ... }`), bukan dibuat dari nol |
 
 **Caddy baru di-deploy** (folder `/opt/hara-caddy/` di masing-masing host, image `caddy:2-alpine`, `network_mode: host`, mem_limit 80m) di AWS validator1 dan Azure — sebelumnya cuma archive-new yang punya Caddy. TLS Let's Encrypt otomatis (tls-alpn-01), tidak perlu port 80 kalau challenge lewat itu berhasil (dikonfirmasi jalan meski beberapa host awalnya cuma buka 443).
 
@@ -430,7 +430,7 @@ konsisten dengan filosofi dekomisioning awal di §14.2 di atas (stop, bukan hapu
 
 **Temuan sampingan penting:** `FAUCET_PRIMARY_PRIVATE_KEY` dari app lama ternyata address-nya **cocok persis dengan `0x72530a08...`** — salah satu dari 3 akun alloc genesis yang statusnya "private key tidak ditemukan" di `access/KEYS_AND_CUSTODY.md` §2 sejak awal sesi. Teka-teki itu sekarang terjawab sebagian — lihat update di file itu.
 
-**⚠️ Butuh aksi Anda:** Turnstile site key/secret yang dibawa dari app lama terdaftar untuk hostname lama (`faucet.202-155-91-138.sslip.io`) di Cloudflare — perlu ditambahkan domain baru (`dashboard.registry.haratoken.app`) di dashboard Cloudflare Turnstile, atau widget captcha bisa gagal render/verifikasi di lokasi baru. Ini satu-satunya bagian yang butuh akses eksternal (Cloudflare) yang saya tidak punya.
+**⚠️ Butuh aksi Anda:** Turnstile site key/secret yang dibawa dari app lama terdaftar untuk hostname lama (`faucet.<MAINNET_V4_SSLIP_HOST>`) di Cloudflare — perlu ditambahkan domain baru (`dashboard.registry.haratoken.app`) di dashboard Cloudflare Turnstile, atau widget captcha bisa gagal render/verifikasi di lokasi baru. Ini satu-satunya bagian yang butuh akses eksternal (Cloudflare) yang saya tidak punya.
 
 ---
 
@@ -664,7 +664,7 @@ untuk pick up `.env` baru (`NEXT_PUBLIC_GATEWAY_HTTP_URL`, `TURNSTILE_EXPECTED_H
 **1 gotcha**: `caddy reload` di host archive (`hara-mainnet-edge-proxy`) TIDAK benar-benar
 apply config baru (persis pola yang sama seperti insiden migrasi testnet 2026-09-10) —
 perlu `docker restart hara-mainnet-edge-proxy` (bukan cuma reload) untuk domain baru
-benar-benar aktif. Situs `52-220-9-100.sslip.io` (fallback lama, di luar scope rename)
+benar-benar aktif. Situs `<MAINNET_ARCHIVE_SSLIP_HOST>` (fallback lama, di luar scope rename)
 sengaja dibiarkan tidak berubah — dikonfirmasi tetap jalan setelah restart.
 
 **Diverifikasi fungsional penuh** (bukan cuma status code): `eth_blockNumber` asli, WS

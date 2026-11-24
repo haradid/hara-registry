@@ -8,9 +8,11 @@ the build plan in
 [`docs/superpowers/plans/2026-10-12-nevacloud-recovery-kit.md`](../docs/superpowers/plans/2026-10-12-nevacloud-recovery-kit.md).
 
 The kit contains **no secret values** and **no live host addresses**: secrets are referenced by
-Vault path or file location, and live `121212` / `121299` host IPs are `<…_IP>` placeholders
-whose names are the variables in `hosts.env.example`. This repository is mirrored publicly, which
-is why. The real addresses live in the private Blockchain repo on Azure DevOps.
+Vault path or file location, and live `121212` / `121299` host IPs are `<…_IP>` placeholders.
+The header of `hosts.env.example` maps every placeholder to its variable (for example
+`<MAINNET_V3_IP>` → `MAINNET_V3_PUBLIC_IP`, `<TESTNET_HOSTB_IP>` → `TESTNET_HOSTB_PUBLIC_IP`) or
+marks it reference-only. This repository is mirrored publicly, which is why. The real addresses
+live in the private Blockchain repo on Azure DevOps.
 
 ## The three chains
 
@@ -23,11 +25,13 @@ is why. The real addresses live in the private Blockchain repo on Azure DevOps.
 ## Order of use
 
 1. **[`00-PRE-TEARDOWN-EXTRACTION.md`](00-PRE-TEARDOWN-EXTRACTION.md)** — the STOP gate (§0: destroying the
-   NevaCloud validators first halts mainnet at 4 of 7 and testnet at 2 of 3) and the extraction
-   checklist E1–E19. Nothing is destroyed before E19 is signed off.
+   NevaCloud validators first halts mainnet at 4 of 7, and leaves testnet at 2 of 3 with no fault
+   tolerance) and the extraction checklist E1–E19. Nothing is destroyed before E19 is signed off.
    [`secrets-inventory.md`](secrets-inventory.md) says where each secret lives.
-2. **Fill `hosts.env`:** `cp recovery-kit/hosts.env.example recovery-kit/hosts.env` (gitignored by
-   `*.env`), replace every `<SUPPLY:…>` and `<…_IP>` placeholder, then `set -a; . recovery-kit/hosts.env; set +a`.
+2. **Fill `hosts.env` outside the repo:** `mkdir -p ~/hara-ops && cp recovery-kit/hosts.env.example ~/hara-ops/hosts.env`,
+   replace every `<SUPPLY:…>` and `<…_IP>` placeholder, then `set -a; . ~/hara-ops/hosts.env; set +a`.
+   Keep it at `~/hara-ops/hosts.env`, not inside the clone: it holds live addresses, the repo is public,
+   and `tools/verify-kit.sh` fails on any `*.env` or public IP it finds under `recovery-kit/`.
 3. **Per chain, `recreate.md`:** [`131216-ledger/recreate.md`](131216-ledger/recreate.md),
    [`121212-mainnet-neva/recreate.md`](121212-mainnet-neva/recreate.md),
    [`121299-testnet-neva/recreate.md`](121299-testnet-neva/recreate.md). Each directory's `README.md`
@@ -40,7 +44,7 @@ is why. The real addresses live in the private Blockchain repo on Azure DevOps.
 | Convention | Meaning |
 |---|---|
 | `<FROM-VAULT:path>`, `<FROM-FILE:path>`, `<SUPPLY:description>` | the only placeholder tokens for secrets |
-| `<MAINNET_*_IP>`, `<TESTNET_*_IP>`, `<…_OLD_IP>` | live or historical host addresses, redacted for the public mirror; same names as `hosts.env` variables |
+| `<MAINNET_*_IP>`, `<TESTNET_*_IP>`, `<…_SSLIP_HOST>`, `<…_OLD_IP>` | live or historical host addresses, redacted for the public mirror. Mapping to `hosts.env` variables is in the header of `hosts.env.example` (`<MAINNET_V3_IP>` → `MAINNET_V3_PUBLIC_IP`, `<MAINNET_CALL_IP>` → `MAINNET_CALL_PUBLIC_IP`, `<MAINNET_GATEWAY_IP>` → `MAINNET_GATEWAY_PUBLIC_IP`, `<MAINNET_V1_AWS_IP>` → `MAINNET_HAPROXY_HOST`, `<TESTNET_HOSTB_IP>` → `TESTNET_HOSTB_PUBLIC_IP`, `<TESTNET_HOSTA_IP>` → `TESTNET_HOSTA_PUBLIC_IP`); the rest are reference-only and have no variable. Copied testnet files also carry the upstream placeholders `<TESTNET_SERVER_PUBLIC_IP>`, `<TESTNET_SERVER_IP>`, `<HOST_A_PUBLIC_IP>` (all = Host A) |
 | `repo-derived — verify before cutover` | the artifact was built from repository content and could not be checked against a live host; read it before running it |
 | **referenced** vs **copied** | `131216-ledger/` references scripts in this repo's `deploy/`, `ops/`, `services/`, `console/` (single source of truth, see `131216-ledger/scripts-manifest.md`); `121212-mainnet-neva/` and `121299-testnet-neva/` hold **copies** taken with `git archive` from the `dattabot/Blockchain` branches `mainnet-final` / `testnet-final`, CRLF-normalised and secret-scanned |
 | `MANIFEST.md` | every kit file → its source → its flag; `tools/verify-kit.sh` fails if a file is missing from it |
@@ -48,17 +52,18 @@ is why. The real addresses live in the private Blockchain repo on Azure DevOps.
 ## How to re-verify the kit
 
 ```bash
-bash recovery-kit/tools/verify-kit.selftest.sh          # 18/18 passed
+bash recovery-kit/tools/verify-kit.selftest.sh          # 20/20 passed
 BLOCKCHAIN_MAINNET=/path/to/Blockchain-mainnet-final \
 BLOCKCHAIN_TESTNET=/path/to/Blockchain-testnet-final \
 bash recovery-kit/tools/verify-kit.sh                   # verify-kit: OK
 ```
 
-`verify-kit.sh` checks: every shell script parses; no CRLF in scripts/configs; no `.env` file in
-the kit; no secret-shaped value (64-hex keys, private-key blocks, `PASSWORD=…`); no `10.42.0.x` (the docker bridge)
-used as a host address (the docker bridge is never a host); every `tools/required-content.txt` fact present; every referenced repo and
-Blockchain path exists; every file listed in `MANIFEST.md`; no public IPv4 literal outside
-`tools/ip-scan.allow`. CI runs gitleaks on the same tree.
+`verify-kit.sh` checks: every shell script parses; no CRLF in scripts/configs; no `.env`,
+`.env.local` or `*.env` file in the kit; no secret-shaped value (64-hex keys, private-key blocks,
+`PASSWORD=…`); no `10.42.0.x` docker-bridge address used as a host; every
+`tools/required-content.txt` fact present; every referenced repo and Blockchain path exists; every
+file listed in `MANIFEST.md`; no public IPv4 literal — dotted or hyphenated `sslip.io`/`nip.io` form —
+outside `tools/ip-scan.allow`. CI runs gitleaks on the same tree.
 
 ## Known limits
 

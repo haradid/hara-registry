@@ -45,7 +45,10 @@ d="$TMP/unlist";  mk_clean "$d"; printf '| `x-chain/README.md` |\n' > "$d/MANIFE
 # (9) public IPv4 literals: the repo is mirrored publicly, so live host addresses stay out of the kit.
 d="$TMP/pubip";   mk_clean "$d"; printf 'validator3 at 203.0.113.7\n' > "$d/x-chain/README.md"; expect "public IP literal caught" 1 "$d"
 d="$TMP/ipallow"; mk_clean "$d"; printf 'old host 203.0.113.7\n' > "$d/x-chain/README.md"; printf '203.0.113.7  # decommissioned old-chain host, already public\n' > "$d/tools/ip-scan.allow"; expect "allowlisted public IP allowed" 0 "$d"
-d="$TMP/privip";  mk_clean "$d"; printf 'bind 10.43.0.11, 127.0.0.1, 172.17.0.2, 0.0.0.0 and <MAINNET_V3_IP>\n' > "$d/x-chain/README.md"; expect "private/loopback IPs and placeholders allowed" 0 "$d"
+d="$TMP/privip";  mk_clean "$d"; printf 'bind 10.43.0.11, 127.0.0.1, 172.17.0.2, 0.0.0.0, 10-0-182-107.sslip.io and <MAINNET_V3_IP>\n' > "$d/x-chain/README.md"; expect "private/loopback IPs and placeholders allowed" 0 "$d"
+
+d="$TMP/hyphip";  mk_clean "$d"; printf 'archive at 203-0-113-7.sslip.io\n' > "$d/x-chain/README.md"; expect "hyphenated (sslip.io) public IP caught" 1 "$d"
+d="$TMP/envlocal"; mk_clean "$d"; printf 'DATABASE_URL=postgres://u:p@h/db\n' > "$d/x-chain/.env.local"; expect ".env.local file in kit caught" 1 "$d"
 
 echo "$pass/$total passed"
 [[ "$pass" == "$total" ]]

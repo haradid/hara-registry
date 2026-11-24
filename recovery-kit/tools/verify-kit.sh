@@ -27,10 +27,10 @@ while IFS= read -r -d '' f; do
   if [[ "$(tr -dc '\r' < "$f" | wc -c)" -gt 0 ]]; then err "CRLF line endings (breaks on Linux): ${f#"$KIT"/}"; fi
 done < <(find "$KIT" -type f \( -name '*.sh' -o -name '*.yml' -o -name '*.yaml' -o -name '*.toml' -o -name '*.example' \) -not -path '*/node_modules/*' -print0)
 
-# (3) no generated env files in the kit (only *.env.example allowed)
+# (3) no generated env files in the kit (.env, .env.local, .env.production, *.env, *.env.* — only *.example allowed)
 while IFS= read -r -d '' f; do
   err "env file in kit (secret risk): ${f#"$KIT"/}"
-done < <(find "$KIT" -type f \( -name '.env' -o -name '*.env' \) -print0)
+done < <(find "$KIT" -type f \( -name '.env' -o -name '.env.*' -o -name '*.env' -o -name '*.env.*' \) -not -name '*.example' -print0)
 
 # (4) secret scan
 SECRET_RE='0x[0-9a-fA-F]{64}|BEGIN [A-Z ]*PRIVATE KEY|AGE-SECRET-KEY-1|AKIA[0-9A-Z]{16}|(PASSWORD|PASSWD|SECRET|TOKEN|API_KEY|PRIVATE_KEY)[A-Z_]*[[:space:]]*[=:][[:space:]]*"?[A-Za-z0-9+/_@#%!.-]{8,}'
@@ -98,11 +98,12 @@ if [[ -f "$KIT/MANIFEST.md" ]]; then
   done < <(find "$KIT" -type f -not -path "$KIT/tools/*" -not -name 'MANIFEST.md' -print0)
 fi
 
-# (9) no public IPv4 literal anywhere in the kit (the repo is mirrored publicly).
+# (9) no public IPv4 literal anywhere in the kit (the repo is mirrored publicly) — dotted (1.2.3.4) or
+#     hyphenated (1-2-3-4.sslip.io / nip.io) form; hyphenated matches are normalised to dotted before the checks.
 #     Private/loopback/unspecified ranges pass; anything else must be in tools/ip-scan.allow
 #     (reserved for already-public, decommissioned old-chain hosts). Live hosts use <X_IP> placeholders.
-IP_RE='\b([0-9]{1,3}\.){3}[0-9]{1,3}\b'
-PRIVATE_IP_RE='^(10\.|127\.|0\.0\.0\.0$|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|255\.|224\.)'
+IP_RE='\b(([0-9]{1,3}\.){3}|([0-9]{1,3}-){3})[0-9]{1,3}\b'
+PRIVATE_IP_RE='^(10\.|127\.|0\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|255\.|224\.)'
 ipallowed=()
 if [[ -f "$IPALLOW" ]]; then
   while IFS= read -r a; do
@@ -111,7 +112,7 @@ if [[ -f "$IPALLOW" ]]; then
   done < "$IPALLOW"
 fi
 while IFS= read -r hit; do
-  file="${hit%%:*}"; ip="${hit##*:}"
+  file="${hit%%:*}"; ip="${hit##*:}"; ip="${ip//-/.}"
   if [[ "$ip" =~ $PRIVATE_IP_RE ]]; then continue; fi
   ok=0
   for a in ${ipallowed[@]+"${ipallowed[@]}"}; do if [[ "$a" == "$ip" ]]; then ok=1; break; fi; done

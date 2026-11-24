@@ -82,3 +82,15 @@ README.md|131216
 MANIFEST.md|Blockchain@mainnet-final:
 MANIFEST.md|Blockchain@testnet-final:
 MANIFEST.md|authored
+# --- final-review fixes (2026-11-24)
+00-PRE-TEARDOWN-EXTRACTION.md|set -o pipefail
+00-PRE-TEARDOWN-EXTRACTION.md|PIPESTATUS
+00-PRE-TEARDOWN-EXTRACTION.md|trace\.ledger
+00-PRE-TEARDOWN-EXTRACTION.md|quorum is \*\*2\*\*
+121299-testnet-neva/README.md|quorum 2 of 3
+121299-testnet-neva/README.md|TESTNET_SERVER_PUBLIC_IP
+121212-mainnet-neva/recreate.md|2N/3
+README.md|MAINNET_V3_PUBLIC_IP
+README.md|~/hara-ops/hosts\.env
+hosts.env.example|^LEDGER_DOMAIN_TRACE="trace\.ledger\.haratrust\.io"
+131216-ledger/recreate.md|0x20090

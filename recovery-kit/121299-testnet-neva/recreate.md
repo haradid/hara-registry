@@ -1,6 +1,6 @@
 # 121299 testnet — recreate Host B on a new VPS
 
-Source `../hosts.env` (`TESTNET_*`). Extraction item E15 (`../00-PRE-TEARDOWN-EXTRACTION.md`)
+Source `~/hara-ops/hosts.env` (`TESTNET_*`). Extraction item E15 (`../00-PRE-TEARDOWN-EXTRACTION.md`)
 holds the authoritative `nodekey3`, gateway `.env`, database dump, `validator3_reset_remote.sh`
 and the forced-command `authorized_keys` line. Sections 1–4 are
 **`repo-derived — verify before cutover`**: `docs-ref/ARCHITECTURE.md` §2.3 says the live
@@ -9,7 +9,8 @@ and the forced-command `authorized_keys` line. Sections 1–4 are
 Fill every `<TESTNET_HOSTB_IP>` / `<TESTNET_HOSTA_IP>` placeholder in the copied files before use.
 
 Decide first: migrate live (add-before-remove, §1) or rebuild at the next quarterly reset
-(1 Jan / Apr / Jul / Oct, 03:00 UTC) and accept the interim outage.
+(1 Jan / Apr / Jul / Oct, 03:00 UTC) and accept the interim state — chain sealing at 2 of 3 with no
+fault tolerance, gateway endpoints down.
 
 ---
 
@@ -18,8 +19,8 @@ Decide first: migrate live (add-before-remove, §1) or rebuild at the next quart
 1. New host: Docker, `ufw` (SSH 22 from operator IPs; 30305 from Host A; 5797/5798 from Host A only).
 2. Copy `scripts/validator3/` to the host. Edit `config/static-nodes.json`: validator3's own enode
    gets the new public IP, Host A's two enodes stay. **Also update Host A's `static-nodes.json`**
-   for validator1 and validator2 with validator3's new enode (restart them one at a time — with
-   quorum 3 of 3 the chain pauses while any validator restarts).
+   for validator1 and validator2 with validator3's new enode (restart them **one at a time**: quorum
+   is 2 of 3, so one validator may be down, but two down halts the chain).
 3. Identity:
    - **Same key:** restore `nodekey3` (E15) into the data dir → same address, rejoins automatically.
    - **New key:** `scripts/ops/01_generate_node_key.sh`, then the address is
@@ -27,12 +28,14 @@ Decide first: migrate live (add-before-remove, §1) or rebuild at the next quart
      the wrong derivation is what put `0x7ac4c91a…` into genesis. Vote it in from validator1 and
      validator2 (`qbft_proposeValidatorVote(<addr>, true)` on both — 2 of 3 is a majority), confirm
      with `qbft_getValidatorsByBlockNumber("latest")`, then vote the old validator3 out from the same
-     two nodes. Quorum math: the interim set of 4 needs 3 online, so sealing continues as long as
-     the new node is synced and signing (whether or not the old Host B is still up). **Remove-first
-     is the dangerous order:** a set of 3 with 2 online is below quorum and the chain halts until the
-     new node is voted in — and voting needs blocks, so you would be stuck. If Host B was already
-     destroyed before the vote, expect exactly that halt at 2 of 3 until a replacement validator3 with
-     the **same** `nodekey3` is back online.
+     two nodes. Quorum math (⌈2N/3⌉): a set of 3 needs 2 signing; the interim set of 4 needs 3. So:
+     - **Host B still up:** add first → N = 4 with 3–4 signing → fine; then remove old → N = 3.
+     - **Host B already gone:** N = 3 with 2 signing still seals (slowly — the missing node's proposer
+       turns time out) and 2 of 3 is a voting majority, so a replacement with a **new** key can be
+       voted in. Do **not** add it before it is synced and signing: N = 4 with only 2 signing is below
+       quorum and halts the chain until the new node catches up. Alternatively restore the **same**
+       `nodekey3` (E15) and nothing needs voting.
+     - Never let two validators be down at once (restarts included): 1 of 3 signing is a halt.
 4. `docker compose up -d`. Settings to keep: `profile=ENTERPRISE`, `sync-mode=SNAP` with BONSAI
    trie-log pruning, `tx-pool=sequenced`, `discovery-enabled=false`, `target-gas-limit` 10 G,
    `min-gas-price=0`, RPC on `5797`, WS `5798`, P2P `30305`.

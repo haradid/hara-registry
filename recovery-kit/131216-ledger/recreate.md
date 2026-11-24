@@ -86,7 +86,7 @@ address changes and partners must re-anchor).
 - **Host:** hara-stateless-2.
 - **Pre-req:** DNS A-records (E9) for `rpc.ledger`, `explorer.ledger`, `grafana.platform`, `console.platform` → `LEDGER_STATELESS2_PUBLIC_IP`, otherwise ACME fails.
 - **Command:** `docker compose -f deploy/edge/docker-compose.yml up -d` with `deploy/edge/Caddyfile`; ACME email `LEDGER_ACME_EMAIL`.
-- **Verify:** `curl -s https://rpc.ledger.haratrust.io -X POST -d '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}'` returns `0x2008a` (131216); explorer and Grafana load over TLS.
+- **Verify:** `curl -s https://rpc.ledger.haratrust.io -X POST -d '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}'` returns `0x20090` (131216); explorer and Grafana load over TLS.
 
 ## 10. Phase 7 — contracts + anchor-worker
 

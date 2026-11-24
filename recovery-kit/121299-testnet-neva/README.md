@@ -1,7 +1,9 @@
 # 121299 — HARA Testnet: the NevaCloud slice (Host B)
 
-Chain ID `121299` ("HARA Testnet"). **3 validators, quorum 3 of 3 — zero fault tolerance**: if any
-one validator is down, no blocks are sealed. 5 s blocks. Free gas (the gateway's `gasPriceGuard`
+Chain ID `121299` ("HARA Testnet"). **3 validators, quorum 2 of 3** (⌈2N/3⌉): one validator may be
+down and blocks are still sealed, but with **no margin left** — a second fault halts the chain, and
+every proposer turn of the missing validator times out, so blocks slow. (The source docs say "quorum
+3 of 3"; the CHANGELOG shows the network actually ran for weeks on 2 effective signers.) 5 s blocks. Free gas (the gateway's `gasPriceGuard`
 rejects non-zero gas prices). `target-gas-limit` 10 G. Besu `profile=ENTERPRISE`, SNAP sync with
 BONSAI trie-log pruning, `tx-pool=sequenced`, `discovery-enabled=false` (static peers only).
 Domains `*.mampang.haratoken.app`.
@@ -11,11 +13,16 @@ resets the chain on 1 Jan / 1 Apr / 1 Jul / 1 Oct at 03:00 UTC. The gateway data
 the reset; chain data and deployed contracts do not.
 
 Host addresses are written as `<TESTNET_HOSTB_IP>` / `<TESTNET_HOSTA_IP>` placeholders (this
-repository is mirrored publicly). The names match `../hosts.env.example`; values are in the private
-Blockchain repo (`tesnet_server/docs/ARCHITECTURE.md`). The copies under `scripts/`, `host-a-deps/`
-and `docs-ref/` were redacted the same way — **fill the placeholders before running any script**
-(notably `HOSTB_IP` in `scripts/ops/cleanup_quarterly_reset.sh` and the enode in
-`scripts/validator3/config/static-nodes.json`).
+repository is mirrored publicly); they map to `TESTNET_HOSTB_PUBLIC_IP` / `TESTNET_HOSTA_PUBLIC_IP`
+in `../hosts.env.example` (full mapping in its header). Values are in the private Blockchain repo
+(`tesnet_server/docs/ARCHITECTURE.md`). The copies under `scripts/`, `host-a-deps/` and `docs-ref/`
+were redacted the same way — **fill the placeholders before running any script** (notably `HOSTB_IP`
+in `scripts/ops/cleanup_quarterly_reset.sh` and the enode in `scripts/validator3/config/static-nodes.json`).
+
+The copied files also carry **three placeholders that were already in the Blockchain repo**, not
+added by this kit: `<TESTNET_SERVER_PUBLIC_IP>` and `<TESTNET_SERVER_IP>` (= Host A's public address,
+`TESTNET_HOSTA_PUBLIC_IP`) and `<HOST_A_PUBLIC_IP>` (same host). Treat all three as
+`TESTNET_HOSTA_PUBLIC_IP`.
 
 ## What is on NevaCloud Host B (being replaced)
 
@@ -30,8 +37,9 @@ Host B `<TESTNET_HOSTB_IP>` — 3 vCPU / 3.8 GB, root login, SSH port 22:
 | Redis | `hara-tesnet-gateway-redis` | internal |
 | forced-command target for the quarterly reset | `validator3_reset_remote.sh` (**host-only**, E15) | SSH |
 
-Losing Host B leaves 2 of 3 validators — below quorum — and the chain halts; every
-`*.mampang.haratoken.app` endpoint dies with it. See `../00-PRE-TEARDOWN-EXTRACTION.md` §0.
+Losing Host B leaves 2 of 3 validators: the chain keeps sealing at quorum 2 with **no fault
+tolerance** and slower blocks, and every `*.mampang.haratoken.app` endpoint dies with the gateway.
+See `../00-PRE-TEARDOWN-EXTRACTION.md` §0.
 
 ## What stays on AWS Host A — and Host B depends on it
 

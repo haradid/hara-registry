@@ -1,7 +1,7 @@
 # 121212 mainnet — recreate the NevaCloud slice on new hosts
 
 Read `../00-PRE-TEARDOWN-EXTRACTION.md` §0 first: the three NevaCloud validators are 3 of 7 and
-must be **added before they are removed**. Source `../hosts.env` (`MAINNET_*`). Extraction items
+must be **added before they are removed**. Source `~/hara-ops/hosts.env` (`MAINNET_*`). Extraction items
 E12–E14 hold the authoritative compose/config/key files; everything below marked
 **`repo-derived — verify before cutover`** was reconstructed from `docs-ref/` and the Blockchain
 repo, not confirmed on a live host.
@@ -40,7 +40,10 @@ Besu settings in use (from `docs-ref/ARCHITECTURE.md` and the CHANGELOG entries)
   Derive it with Besu itself: `besu public-key export-address --node-private-key-file=key`.
   Then, from a **majority of the current validators** (4 of 7): `qbft_proposeValidatorVote(<newAddress>, true)`.
   Confirm with `qbft_getValidatorsByBlockNumber("latest")` **before** voting any old validator out
-  (`qbft_proposeValidatorVote(<oldAddress>, false)`), and keep the active count ≥ 5 at every step.
+  (`qbft_proposeValidatorVote(<oldAddress>, false)`). Keep the number of live, signing validators
+  ≥ ⌈2N/3⌉ of the **current** set size N at every step — 5 of 7, 6 of 8, 6 of 9, 7 of 10. "≥ 5" is
+  only right while N = 7; if you add all three replacements before removing any old node, N = 10
+  and the quorum is 7. Safest: add one, confirm, remove one, so N stays 7–8.
 
 **512-block SNAP window:** a node more than 512 blocks (about 43 min) behind cannot self-resync
 with the trie-log limit above; follow `docs-ref/RUNBOOK_VALIDATOR_SNAP_STUCK_RECOVERY.md`
