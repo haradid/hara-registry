@@ -50,3 +50,15 @@ hosts.env.example|^TESTNET_HOSTA_PUBLIC_IP="<TESTNET_HOSTA_IP>"
 131216-ledger/scripts-manifest.md|`deploy/ops/install-backup-timers\.sh`
 131216-ledger/scripts-manifest.md|`deploy/chain/init/init\.sh`
 131216-ledger/scripts-manifest.md|`deploy/edge/Caddyfile`
+121212-mainnet-neva/README.md|<MAINNET_V3_IP>
+121212-mainnet-neva/README.md|<MAINNET_CALL_IP>
+121212-mainnet-neva/README.md|<MAINNET_GATEWAY_IP>
+121212-mainnet-neva/README.md|<MAINNET_V1_AWS_IP>
+121212-mainnet-neva/README.md|host-only
+121212-mainnet-neva/recreate.md|keccak256
+121212-mainnet-neva/recreate.md|qbft_proposeValidatorVote
+121212-mainnet-neva/recreate.md|sync-mode=FULL
+121212-mainnet-neva/recreate.md|26\.6\.1
+121212-mainnet-neva/recreate.md|permitopen
+121212-mainnet-neva/recreate.md|repo-derived — verify before cutover
+121212-mainnet-neva/scripts/config/genesis.json|"chainId": 121212
