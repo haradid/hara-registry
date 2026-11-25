@@ -49,6 +49,7 @@ d="$TMP/privip";  mk_clean "$d"; printf 'bind 10.43.0.11, 127.0.0.1, 172.17.0.2,
 
 d="$TMP/hyphip";  mk_clean "$d"; printf 'archive at 203-0-113-7.sslip.io\n' > "$d/x-chain/README.md"; expect "hyphenated (sslip.io) public IP caught" 1 "$d"
 d="$TMP/envlocal"; mk_clean "$d"; printf 'DATABASE_URL=postgres://u:p@h/db\n' > "$d/x-chain/.env.local"; expect ".env.local file in kit caught" 1 "$d"
+d="$TMP/sqlpw";    mk_clean "$d"; printf "CREATE ROLE r WITH LOGIN PASSWORD 'Sup3rSecretValue!';\n" > "$d/x-chain/init.sql"; expect "single-quoted SQL password literal caught" 1 "$d"
 
 echo "$pass/$total passed"
 [[ "$pass" == "$total" ]]

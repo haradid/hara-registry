@@ -66,6 +66,7 @@ each should be treated as compromised and rotated on rebuild:
 | `shared_doc_tesnet_and_prod/PROD_ACCESS_AND_GUIDE.md` | admin and Grafana credentials |
 | `shared_doc_tesnet_and_prod/TESNET_ACCESS_AND_GUIDE.md` | admin credentials, QA API key |
 | `cloud_2/ARSITEKTUR.md` | root SSH password, `HX_NODE_PRIVKEY` |
+| `mainnet_production/gateway/db/init/002_alert_recipients.sql` | `grafana_ro` Postgres read-only password. **Also exposed on the public hara-registry mirror** (#79, 2026-11-24) until redacted to `<SUPPLY:…>`; the copy in `121212-mainnet-neva/scripts/gateway/db/init/` is the redacted one. Generate a new value on rebuild (`openssl rand -base64 24`) and grant `SELECT` only on the tables Grafana reads, not `ALL TABLES` (that includes `api_keys` hashes and `admins`). |
 
 The copies in `121212-mainnet-neva/docs-ref/` and `121299-testnet-neva/docs-ref/` were taken
 only from `mainnet_production/` and `tesnet_server/` and were secret-scanned by

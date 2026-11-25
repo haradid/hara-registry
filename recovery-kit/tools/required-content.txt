@@ -94,3 +94,5 @@ README.md|MAINNET_V3_PUBLIC_IP
 README.md|~/hara-ops/hosts\.env
 hosts.env.example|^LEDGER_DOMAIN_TRACE="trace\.ledger\.haratrust\.io"
 131216-ledger/recreate.md|0x20090
+# 2026-11-24 security-review fix: SQL password literal redacted, harness now catches PASSWORD '...'
+121212-mainnet-neva/scripts/gateway/db/init/002_alert_recipients.sql|<SUPPLY:grafana_ro

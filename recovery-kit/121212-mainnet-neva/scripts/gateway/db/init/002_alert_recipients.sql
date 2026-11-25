@@ -14,7 +14,9 @@ CREATE INDEX ON alert_recipients (active, severity);
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'grafana_ro') THEN
-        CREATE ROLE grafana_ro WITH LOGIN PASSWORD 'GrafanaReadOnly2026!';
+        -- kit: the committed literal was redacted (it is public in dattabot/Blockchain and was mirrored by
+        -- hara-registry #79 before redaction) -- generate a NEW value on rebuild and supply it here.
+        CREATE ROLE grafana_ro WITH LOGIN PASSWORD '<SUPPLY:grafana_ro-password-generate-new-the-old-value-is-public>';
     END IF;
 END$$;
 
