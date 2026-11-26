@@ -8,7 +8,7 @@ Legend: **DONE** = actioned from the repo. **OPS** = needs a human with gateway-
 
 ## 1. Testnet API key for the Atlas tenant (121299)
 
-**Status: OPS. Cannot be issued from this repository.**
+**Status: DONE (HARA side, 2026-11-26). Key issued from the Mampang dashboard for tenant `atlas imron`, default limits (`rps_limit 10`, `daily_quota 100000`). Remaining step is secure delivery to Atlas (see "Delivery" below). No key value appears in this document.**
 
 - **How keys are issued.** An administrator creates the user and key in the gateway dashboard (`https://dashboard.mampang.haratoken.app`, Next.js admin, pages `users/<id>` and `api-keys`; source `recovery-kit/121299-testnet-neva/scripts/gateway/dashboard/`). The plaintext key is displayed once at creation; the gateway stores only a hash (`api_keys.key_hash`, `db/init/001_init.sql`). There is no self-service registration (manual §3.1). The public endpoint's error text "register a free API key" is a known inconsistency (manual Appendix B item 2).
 - **Who approves.** Whoever holds the gateway admin login for the Mampang dashboard (the team operating the Blockchain repo's `tesnet_server/` deployment). The manual routes requests through the "HARA integration contact", which **is not yet defined** anywhere in the operations documentation (Appendix B item 1). See item 6.
@@ -80,4 +80,4 @@ Legend: **DONE** = actioned from the repo. **OPS** = needs a human with gateway-
 
 - The testnet CHANGELOG still says `besu:26.6.0-RC1` at bootstrap; live is `26.6.1`, so the manual is correct and the CHANGELOG is stale.
 - The live gateway blocks `admin_*` and `txpool_*` on `/v1/public` even though the copied `archiveRouter.ts` has no allowlist; the filter lives elsewhere in the deployment. This narrows the "missing method allowlist" finding from the 2026-11-25 security review to the source copy, not production.
-- Items 1 and 6 are the same gap: there is no named owner for partner key issuance. Until one exists, every partner request lands with whoever holds the dashboard admin login.
+- Items 1 and 6 are the same gap: there is no named owner for partner key issuance. The Atlas testnet key was issued ad hoc on 2026-11-26 by the repository maintainer; until a contact is named, every partner request lands with whoever holds the dashboard admin login.
